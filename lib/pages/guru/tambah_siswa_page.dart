@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../../api_config.dart';
 
 class TambahSiswaPage extends StatefulWidget {
   final int guruId; // Menerima ID Guru dari halaman Dashboard
@@ -31,7 +32,7 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
   // PENTING: Sesuaikan base URL ini. 
   // Gunakan 'http://10.0.2.2:8080' jika di Emulator Android.
   // Gunakan 'http://localhost:8080' jika di Flutter Web.
-  final String _baseUrl = 'http://localhost:8080/api/gurucontroller';
+  final String _baseUrl = '${ApiConfig.baseUrl}/gurucontroller';
 
   @override
   void initState() {

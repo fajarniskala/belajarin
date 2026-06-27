@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'register_screen.dart'; // Import halaman register yang sudah dibuat
+import 'register_screen.dart';
+import '../../api_config.dart'; // Import halaman register yang sudah dibuat
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -36,7 +37,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _fetchUserStats() async {
     // Sesuaikan dengan URL yang berfungsi di environment Anda
     // Gunakan http://10.0.2.2:8080 jika menggunakan Android Emulator
-    const String apiUrl = 'http://localhost:8080/api/dashboard/user-stats';
+    const String apiUrl = '${ApiConfig.baseUrl}/dashboard/user-stats';
 
     try {
       final response = await http.get(Uri.parse(apiUrl));

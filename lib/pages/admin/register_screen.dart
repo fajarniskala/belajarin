@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../../api_config.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -40,7 +41,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _isLoading = true);
 
-    const String apiUrl = 'http://localhost:8080/auth/register';
+    const String apiUrl = '${ApiConfig.apiUrl}/register';
 
     try {
       final response = await http.post(
