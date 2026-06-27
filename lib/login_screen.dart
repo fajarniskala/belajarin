@@ -3,9 +3,10 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 // Import halaman dashboard
-import 'admin_dashboard_screen.dart';
-import 'dashboard_anak.dart';
-import 'dashboard_ortu.dart'; // <-- Import halaman dashboard ortu
+import '/pages/admin/admin_dashboard_screen.dart';
+import 'pages/anak/dashboard_anak.dart';
+import 'pages/ortu/dashboard_ortu.dart'; // <-- Import halaman dashboard ortu
+import 'pages/guru/guru_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -35,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
+      // Sesuaikan URL API Anda
       const String apiUrl = 'http://localhost:8080/auth/login'; 
 
       final response = await http.post(
@@ -47,11 +49,10 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final String role = data['data']['role'];
+        final Map<String, dynamic> responseData = json.decode(response.body);
+        final Map<String, dynamic> userData = responseData['data'];
+        final String role = userData['role'];
 
-        if (!mounted) return;
-        
         // --- LOGIKA NAVIGASI BERDASARKAN ROLE ---
         if (role == 'admin') {
           Navigator.pushReplacement(
@@ -63,10 +64,17 @@ class _LoginScreenState extends State<LoginScreen> {
             context,
             MaterialPageRoute(builder: (context) => const HomePage()), 
           );
-        } else if (role == 'parent') { // <-- Tambahan rute untuk Orang Tua
+        } else if (role == 'parent') { 
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const DashboardOrtuScreen()), 
+          );
+        } else if (role == 'guru') {
+          // --- MENGAMBIL ID GURU & MENGARAHKAN KE DASHBOARD GURU ---
+          final int guruId = int.parse(userData['id'].toString()); 
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => GuruDashboardScreen(guruId: guruId)), 
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -74,22 +82,21 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } else {
-        final errorData = json.decode(response.body);
-        if (!mounted) return;
+        final Map<String, dynamic> errorData = json.decode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(errorData['messages']['error'] ?? 'Login Gagal')),
+          SnackBar(content: Text(errorData['messages']?['error'] ?? 'Login gagal')),
         );
       }
     } catch (e) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal terhubung ke server: $e')),
+        SnackBar(content: Text('Terjadi kesalahan koneksi: $e')),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
