@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'halaman_riwayat.dart';
 
 void main() {
   runApp(
@@ -179,7 +180,14 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
                             color: const Color(0xFFBC8FFD),
                             icon: Icons.bar_chart_rounded,
                             text: "Lihat Riwayat",
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const HalamanRiwayat(),
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ],
