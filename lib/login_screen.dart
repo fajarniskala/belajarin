@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
+// IMPORT HALAMAN REGISTER (Sesuaikan path ini dengan struktur folder Anda jika berbeda)
+import 'register_page.dart';
+
 // Import halaman dashboard
 import '/pages/admin/admin_dashboard_screen.dart';
 import 'pages/anak/dashboard_anak.dart';
@@ -37,15 +40,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // Sesuaikan URL API Anda
-      const String apiUrl = 'http://localhost:8080/auth/login'; 
+      const String apiUrl = 'http://localhost:8080/auth/login';
 
       final response = await http.post(
         Uri.parse(apiUrl),
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {
-          'email': email,
-          'password': password,
-        },
+        body: {'email': email, 'password': password},
       );
 
       if (response.statusCode == 200) {
@@ -57,24 +57,30 @@ class _LoginScreenState extends State<LoginScreen> {
         if (role == 'admin') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
+            MaterialPageRoute(
+              builder: (context) => const AdminDashboardScreen(),
+            ),
           );
         } else if (role == 'child') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const HomePage()), 
+            MaterialPageRoute(builder: (context) => const HomePage()),
           );
-        } else if (role == 'parent') { 
+        } else if (role == 'parent') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const DashboardOrtuScreen()), 
+            MaterialPageRoute(
+              builder: (context) => const DashboardOrtuScreen(),
+            ),
           );
         } else if (role == 'guru') {
           // --- MENGAMBIL ID GURU & MENGARAHKAN KE DASHBOARD GURU ---
-          final int guruId = int.parse(userData['id'].toString()); 
+          final int guruId = int.parse(userData['id'].toString());
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => GuruDashboardScreen(guruId: guruId)), 
+            MaterialPageRoute(
+              builder: (context) => GuruDashboardScreen(guruId: guruId),
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -84,13 +90,15 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         final Map<String, dynamic> errorData = json.decode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorData['messages']?['error'] ?? 'Login gagal')),
+          SnackBar(
+            content: Text(errorData['messages']?['error'] ?? 'Login gagal'),
+          ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Terjadi kesalahan koneksi: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan koneksi: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -130,33 +138,46 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: const Text(
                   'Halaman Login',
                   style: TextStyle(
-                      color: Colors.black87,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16),
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
                 ),
               ),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 32,
+                  ),
                   child: Column(
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: const [
-                          Icon(Icons.library_books, color: Colors.white, size: 36),
+                          Icon(
+                            Icons.library_books,
+                            color: Colors.white,
+                            size: 36,
+                          ),
                           SizedBox(width: 8),
-                          Text('BelajarIn',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.0)),
+                          Text(
+                            'BelajarIn',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      const Text('Belajar Menyenangkan, Membaca Lebih Banyak!',
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                          textAlign: TextAlign.center),
+                      const Text(
+                        'Belajar Menyenangkan, Membaca Lebih Banyak!',
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
                       const SizedBox(height: 32),
                       Container(
                         padding: const EdgeInsets.all(24),
@@ -165,76 +186,109 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
                             BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 15,
-                                offset: const Offset(0, 8)),
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 15,
+                              offset: const Offset(0, 8),
+                            ),
                           ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Center(
-                                child: Text('Masuk ke BelajarIn',
-                                    style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black87))),
-                            const SizedBox(height: 32),
-                            const Text('Email',
+                              child: Text(
+                                'Masuk ke BelajarIn',
                                 style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87)),
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+                            const Text(
+                              'Email',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             TextField(
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
                               decoration: InputDecoration(
                                 hintText: 'masukkan email...',
-                                hintStyle: TextStyle(color: Colors.grey.shade400),
+                                hintStyle: TextStyle(
+                                  color: Colors.grey.shade400,
+                                ),
                                 contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 14),
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
                                 border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                        BorderSide(color: Colors.grey.shade300)),
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
                                 enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                        BorderSide(color: Colors.grey.shade300)),
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
                                 focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                        color: Color(0xFF5CA3FF), width: 2)),
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF5CA3FF),
+                                    width: 2,
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 20),
-                            const Text('Password',
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.black87)),
+                            const Text(
+                              'Password',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             TextField(
                               controller: _passwordController,
                               obscureText: true,
                               decoration: InputDecoration(
                                 hintText: '********',
-                                hintStyle: TextStyle(color: Colors.grey.shade400),
+                                hintStyle: TextStyle(
+                                  color: Colors.grey.shade400,
+                                ),
                                 contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 14),
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
                                 border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                        BorderSide(color: Colors.grey.shade300)),
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
                                 enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                        BorderSide(color: Colors.grey.shade300)),
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
                                 focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(
-                                        color: Color(0xFF5CA3FF), width: 2)),
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF5CA3FF),
+                                    width: 2,
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 32),
@@ -246,17 +300,57 @@ class _LoginScreenState extends State<LoginScreen> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF5CA3FF),
                                   shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                   elevation: 0,
                                 ),
                                 child: _isLoading
                                     ? const CircularProgressIndicator(
-                                        color: Colors.white)
-                                    : const Text('Masuk Sekarang 🚀',
+                                        color: Colors.white,
+                                      )
+                                    : const Text(
+                                        'Masuk Sekarang 🚀',
                                         style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white)),
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            // TAMPILAN LINK PINDAH KE REGISTER
+                            Center(
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      // Kirim parameter false agar default Orang Tua
+                                      builder: (context) => const RegisterPage(
+                                        initialIsAnak: false,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: RichText(
+                                  text: const TextSpan(
+                                    text: 'Belum punya akun? ',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                    children: [
+                                      TextSpan(
+                                        text: 'Daftar Orang Tua',
+                                        style: TextStyle(
+                                          color: Color(0xFF5CA3FF),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
                           ],
