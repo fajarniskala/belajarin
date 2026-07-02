@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart'; // <--- TAMBAHKAN BARIS INI
 
 // IMPORT HALAMAN REGISTER (Sesuaikan path ini dengan struktur folder Anda jika berbeda)
 import 'register_page.dart';
@@ -64,18 +65,40 @@ class _LoginScreenState extends State<LoginScreen> {
         } else if (role == 'child') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const HomePage()),
+            MaterialPageRoute(
+              builder: (context) => HomePage(
+                studentId: int.parse(
+                  userData['id'].toString(),
+                ), // Gunakan userData dan pastikan integer
+                studentName: userData['name'].toString(), // Gunakan userData
+              ),
+            ),
           );
         } else if (role == 'parent') {
+          // 1. Ambil dan parse ID orang tua dari data API terlebih dahulu
+          final int parentId = int.parse(userData['id'].toString());
+
+          // 2. Tambahkan cek mounted untuk menghilangkan peringatan garis biru
+          if (!mounted) return;
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => const DashboardOrtuScreen(),
+              // 3. HAPUS kata 'const' di depan DashboardOrtuScreen karena membawa data dinamis
+              builder: (context) => DashboardOrtuScreen(parentId: parentId),
             ),
           );
         } else if (role == 'guru') {
           // --- MENGAMBIL ID GURU & MENGARAHKAN KE DASHBOARD GURU ---
           final int guruId = int.parse(userData['id'].toString());
+
+          // ====================================================================
+          // PROSES SIMPAN NAMA USER KE MEMORI LOKAL HP
+          // ====================================================================
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setString('name', userData['name']?.toString() ?? 'Guru');
+          // ====================================================================
+
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -309,7 +332,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         color: Colors.white,
                                       )
                                     : const Text(
-                                        'Masuk Sekarang 🚀',
+                                        'Masuk Sekarang',
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
