@@ -1,23 +1,334 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'kerjakan_tugas_page.dart';
+import 'pdf_viewer_page.dart';
+import 'daftar_modul_page.dart';
+import 'perpustakaan_page.dart';
+import '../../login_screen.dart';
+import 'dart:convert';
+import '../../api_config.dart';
+import 'package:http/http.dart' as http;
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final int studentId;
+  final String studentName;
+
+  const HomePage({
+    super.key,
+    required this.studentId, // Wajib diisi saat memanggil HomePage
+    required this.studentName, // Wajib diisi saat memanggil HomePage
+  });
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+  // --- Daftar State Wadah Penyimpanan Data dari DB ---
+  List<dynamic> _listTugasTertunda = [];
+  List<dynamic> _listKategori = [];
+  List<dynamic> _listTugasSelesai = [];
+  List<dynamic> _listAllEbooks =
+      []; // Wadah untuk menyimpan semua koleksi buku cerita
+  Map<String, dynamic>? _latestBookLog;
+
+  // --- State Indikator Pemuatan Data (Loading) ---
+  bool _isLoadingTugas = true;
+  bool _isLoadingKategori = true;
+  bool _isLoadingBook = true;
+  bool _isLoadingTugasSelesai = true;
+  bool _isLoadingAllEbooks = true;
+
+  // --- State Statistik Gamifikasi Kepala Beranda ---
+  int _totalPoin = 0;
+  int _totalBadge = 0;
+  int _hariStreak = 0;
+  bool _isLoadingStats = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchTugasTertunda();
+    _fetchKategoriBelajar();
+    _fetchLatestReading();
+    _fetchGamificationStats();
+    _fetchTugasSelesai();
+    _fetchAllEbooks(); // Memuat koleksi rak buku cerita saat halaman dibuka
+  }
+
+  // ================= AMBIL DATA DARI API BACKEND =================
+
+  // Ambil Koleksi Semua Buku Cerita untuk Rak Buku
+  Future<void> _fetchAllEbooks() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl_siswa}/siswa/all-ebooks'),
+      );
+      if (response.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            _listAllEbooks = jsonDecode(response.body)['data'];
+            _isLoadingAllEbooks = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingAllEbooks = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingAllEbooks = false);
+      print("Error ambil semua ebook: $e");
+    }
+  }
+
+  // Ambil Statistik Poin, Badge, dan Streak Anak
+  Future<void> _fetchGamificationStats() async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${ApiConfig.baseUrl_siswa}/siswa/gamification-stats/${widget.studentId}',
+        ),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body)['data'];
+        if (mounted) {
+          setState(() {
+            _totalPoin = data['total_poin'];
+            _totalBadge = data['total_badge'];
+            _hariStreak = data['hari_streak'];
+            _isLoadingStats = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingStats = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingStats = false);
+      print("Error ambil statistik gamifikasi: $e");
+    }
+  }
+
+  // Ambil Data Progres E-book yang Terakhir Dibaca
+  Future<void> _fetchLatestReading() async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${ApiConfig.baseUrl_siswa}/siswa/latest-reading/${widget.studentId}',
+        ),
+      );
+      if (response.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            _latestBookLog = jsonDecode(response.body)['data'];
+            _isLoadingBook = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingBook = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingBook = false);
+      print("Error ambil log bacaan: $e");
+    }
+  }
+
+  // Ambil Data Daftar Tugas yang Belum Dikerjakan Siswa
+  Future<void> _fetchTugasTertunda() async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${ApiConfig.baseUrl_siswa}/siswa/pending-tasks/${widget.studentId}',
+        ),
+      );
+      if (response.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            _listTugasTertunda = jsonDecode(response.body)['data'];
+            _isLoadingTugas = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingTugas = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingTugas = false);
+      print("Error ambil tugas: $e");
+    }
+  }
+
+  // Ambil Data Kategori Pelajaran Beserta Jumlah Modulnya
+  Future<void> _fetchKategoriBelajar() async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${ApiConfig.baseUrl_siswa}/siswa/categories-with-count/${widget.studentId}',
+        ),
+      );
+      if (response.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            _listKategori = jsonDecode(response.body)['data'];
+            _isLoadingKategori = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingKategori = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingKategori = false);
+      print("Error ambil kategori: $e");
+    }
+  }
+
+  // Ambil Riwayat Pengumpulan Jawaban Tugas & Nilai dari Guru
+  Future<void> _fetchTugasSelesai() async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${ApiConfig.baseUrl_siswa}/siswa/submited-tasks/${widget.studentId}',
+        ),
+      );
+      if (response.statusCode == 200) {
+        if (mounted) {
+          setState(() {
+            _listTugasSelesai = jsonDecode(response.body)['data'];
+            _isLoadingTugasSelesai = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingTugasSelesai = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingTugasSelesai = false);
+      print("Error ambil riwayat tugas: $e");
+    }
+  }
+
+  // --- DIALOG KONFIRMASI LOGOUT DENGAN CLEAR PREFERENCES ---
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Row(
+            children: [
+              Text("🥺 ", style: TextStyle(fontSize: 24)),
+              Text(
+                "Mau Keluar?",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            "Apakah kamu yakin ingin selesai belajar dan keluar dari aplikasi BelajarIn?",
+            style: TextStyle(fontSize: 15, color: Colors.black54, height: 1.4),
+          ),
+          actionsPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                "Tidak, Tetap Belajar 🚀",
+                style: TextStyle(
+                  color: Colors.blue[700],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // 🔐 MEMBERSIHKAN SELURUH DATA SESI DAN TOKEN DI HP ANAK
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+
+                // Bersihkan halaman dan arahkan kembali ke halaman utama login_page.dart
+                if (context.mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
+                    (route) => false,
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[400],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                "Ya, Keluar",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // ================= FUNGSI BANTUAN GENERATOR UI =================
+
+  Color _parseHexColor(String? hexString) {
+    if (hexString == null || hexString.isEmpty) return Colors.blue;
+    final buffer = StringBuffer();
+    if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
+    buffer.write(hexString.replaceFirst('#', ''));
+    return Color(int.parse(buffer.toString(), radix: 16));
+  }
+
+  IconData _getCategoryIcon(String? dbIconName) {
+    switch (dbIconName) {
+      case 'icon_math.png':
+        return Icons.calculate;
+      case 'icon_ipa.png':
+        return Icons.biotech;
+      case 'icon_ips.png':
+        return Icons.public;
+      case 'icon_bahasa.png':
+        return Icons.book_online_rounded;
+      case 'icon_english.png':
+        return Icons.translate;
+      default:
+        return Icons.import_contacts;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    String initial = widget.studentName.isNotEmpty
+        ? widget.studentName[0].toUpperCase()
+        : "S";
+
     return Scaffold(
       body: SingleChildScrollView(
         child: Column(
           children: [
+            // --- HEADER GAMIFIKASI KEPALA BERANDA ---
             Container(
               width: MediaQuery.of(context).size.width,
               height: 200,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Colors.blue,
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(30),
@@ -25,7 +336,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               child: Padding(
-                padding: EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -35,33 +346,33 @@ class _HomePageState extends State<HomePage> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               "Hai, Selamat Belajar ✨",
                               style: TextStyle(
                                 color: Colors.white54,
-                                fontWeight: FontWeight(500),
+                                fontWeight: FontWeight.w500,
                                 fontSize: 16,
                               ),
                             ),
                             Text(
-                              "Andi Pratama",
-                              style: TextStyle(
+                              widget.studentName,
+                              style: const TextStyle(
                                 color: Colors.white,
-                                fontWeight: FontWeight(800),
+                                fontWeight: FontWeight.w800,
                                 fontSize: 32,
                               ),
                             ),
                           ],
                         ),
-
-                        Column(
+                        // GABUNGAN AVATAR & LOGO LOGOUT JELAS DI SEBELAH KANAN
+                        Row(
                           children: [
                             Container(
                               width: 50,
                               height: 50,
                               decoration: BoxDecoration(
                                 color: Colors.yellow[600],
-                                borderRadius: BorderRadius.all(
+                                borderRadius: const BorderRadius.all(
                                   Radius.circular(80),
                                 ),
                                 border: Border.all(
@@ -73,41 +384,56 @@ class _HomePageState extends State<HomePage> {
                               ),
                               child: Center(
                                 child: Text(
-                                  "A",
-                                  style: TextStyle(
+                                  initial,
+                                  style: const TextStyle(
                                     color: Colors.white,
-                                    fontWeight: FontWeight(900),
+                                    fontWeight: FontWeight.w900,
                                     fontSize: 32,
                                   ),
                                 ),
                               ),
                             ),
+                            const SizedBox(width: 8),
+                            // Tombol Logout dengan icon yang jelas dan intuitif untuk anak
+                            IconButton(
+                              icon: const Icon(
+                                Icons.logout_rounded,
+                                color: Colors.white,
+                                size: 28,
+                              ),
+                              onPressed: () => _showLogoutConfirmation(context),
+                              tooltip: 'Keluar Aplikasi',
+                            ),
                           ],
                         ),
                       ],
                     ),
-
-                    SizedBox(height: 20),
-
+                    const SizedBox(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         CardAchiev(
                           icons: Icons.star,
                           colors: Colors.amber,
-                          values: "450",
+                          values: _isLoadingStats
+                              ? "..."
+                              : _totalPoin.toString(),
                           desc: "Total Poin",
                         ),
                         CardAchiev(
                           icons: Icons.workspace_premium,
                           colors: Colors.brown.shade200,
-                          values: "7",
+                          values: _isLoadingStats
+                              ? "..."
+                              : _totalBadge.toString(),
                           desc: "Badge",
                         ),
                         CardAchiev(
                           icons: Icons.local_fire_department,
                           colors: Colors.amber.shade900,
-                          values: "5",
+                          values: _isLoadingStats
+                              ? "..."
+                              : _hariStreak.toString(),
                           desc: "Hari Streak",
                         ),
                       ],
@@ -117,223 +443,698 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            SizedBox(height: 80),
+            const SizedBox(height: 40),
 
             Padding(
-              padding: const EdgeInsets.only(left: 30, right: 30),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  // --- SECTION 1: LANJUT MEMBACA ---
+                  Row(
                     children: [
-                      Row(
+                      Icon(Icons.menu_book, color: Colors.blue[900], size: 24),
+                      const SizedBox(width: 10),
+                      const Text(
+                        "Lanjut Membaca",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (_isLoadingBook)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_latestBookLog == null)
+                    const Text(
+                      "Belum ada buku bacaan untukmu.",
+                      style: TextStyle(color: Colors.grey),
+                    )
+                  else
+                    Container(
+                      width: MediaQuery.of(context).size.width,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.menu_book,
-                            color: Colors.blue[900],
-                            size: 24,
+                          Container(
+                            width: 80,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              color: Colors.orange,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.book,
+                              color: Colors.white,
+                              size: 40,
+                            ),
                           ),
-
-                          SizedBox(width: 10),
-
-                          Text(
-                            "Lanjut Membaca",
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 24,
-                              fontWeight: FontWeight(800),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _latestBookLog!['title'] ?? 'Buku Bacaan',
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  int.parse(
+                                            _latestBookLog!['last_page']
+                                                .toString(),
+                                          ) ==
+                                          int.parse(
+                                            _latestBookLog!['total_pages']
+                                                .toString(),
+                                          )
+                                      ? "🎉 Hore! Sudah selesai kamu baca"
+                                      : "Terakhir dibaca baru saja",
+                                  style: TextStyle(
+                                    color:
+                                        int.parse(
+                                              _latestBookLog!['last_page']
+                                                  .toString(),
+                                            ) ==
+                                            int.parse(
+                                              _latestBookLog!['total_pages']
+                                                  .toString(),
+                                            )
+                                        ? Colors.green[700]
+                                        : Colors.black45,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: LinearProgressIndicator(
+                                    value:
+                                        int.parse(
+                                          _latestBookLog!['last_page']
+                                              .toString(),
+                                        ) /
+                                        int.parse(
+                                          _latestBookLog!['total_pages']
+                                              .toString(),
+                                        ),
+                                    backgroundColor: Colors.grey[300],
+                                    valueColor: AlwaysStoppedAnimation(
+                                      int.parse(
+                                                _latestBookLog!['last_page']
+                                                    .toString(),
+                                              ) ==
+                                              int.parse(
+                                                _latestBookLog!['total_pages']
+                                                    .toString(),
+                                              )
+                                          ? Colors.green
+                                          : Colors.blue,
+                                    ),
+                                    minHeight: 8,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "Halaman ${_latestBookLog!['last_page']} dari ${_latestBookLog!['total_pages']}",
+                                  style: const TextStyle(
+                                    color: Colors.black45,
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => PdfViewerPage(
+                                          studentId: widget.studentId,
+                                          ebookId: int.parse(
+                                            _latestBookLog!['ebook_id']
+                                                .toString(),
+                                          ),
+                                          title: _latestBookLog!['title'] ?? '',
+                                          initialPage:
+                                              int.parse(
+                                                    _latestBookLog!['last_page']
+                                                        .toString(),
+                                                  ) ==
+                                                  int.parse(
+                                                    _latestBookLog!['total_pages']
+                                                        .toString(),
+                                                  )
+                                              ? 1
+                                              : int.parse(
+                                                  _latestBookLog!['last_page']
+                                                      .toString(),
+                                                ),
+                                          totalPages: int.parse(
+                                            _latestBookLog!['total_pages']
+                                                .toString(),
+                                          ),
+                                          fileUrl:
+                                              _latestBookLog!['file_url'] ??
+                                              'sample.pdf',
+                                        ),
+                                      ),
+                                    ).then((_) {
+                                      _fetchLatestReading();
+                                      _fetchGamificationStats();
+                                    });
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor:
+                                        int.parse(
+                                              _latestBookLog!['last_page']
+                                                  .toString(),
+                                            ) ==
+                                            int.parse(
+                                              _latestBookLog!['total_pages']
+                                                  .toString(),
+                                            )
+                                        ? Colors.green[600]
+                                        : Colors.blue[900],
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    int.parse(
+                                              _latestBookLog!['last_page']
+                                                  .toString(),
+                                            ) ==
+                                            int.parse(
+                                              _latestBookLog!['total_pages']
+                                                  .toString(),
+                                            )
+                                        ? "Baca Lagi 🔄"
+                                        : "Lanjutkan",
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
+                    ),
 
-                      SizedBox(height: 20),
+                  const SizedBox(height: 30),
 
-                      Container(
-                        width: MediaQuery.of(context).size.width,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
+                  // --- RAK BUKU CERITA (HORIZONTAL SCROLLING) ---
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.library_books,
+                            color: Colors.blue[900],
+                            size: 24,
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            "Rak Buku Cerita",
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  PerpustakaanPage(studentId: widget.studentId),
+                            ),
+                          ).then((_) {
+                            _fetchLatestReading();
+                            _fetchAllEbooks();
+                          });
+                        },
+                        child: Text(
+                          "Lihat Semua",
+                          style: TextStyle(
+                            color: Colors.blue[900],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
 
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
+                  if (_isLoadingAllEbooks)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_listAllEbooks.isEmpty)
+                    const Text(
+                      "Belum ada koleksi buku cerita di rak.",
+                      style: TextStyle(color: Colors.grey),
+                    )
+                  else
+                    SizedBox(
+                      height: 175,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _listAllEbooks.length,
+                        itemBuilder: (context, index) {
+                          final book = _listAllEbooks[index];
+                          return InkWell(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PdfViewerPage(
+                                    studentId: widget.studentId,
+                                    ebookId: int.parse(book['id'].toString()),
+                                    title: book['title'] ?? '',
+                                    initialPage: 1,
+                                    totalPages: int.parse(
+                                      book['total_pages'].toString(),
+                                    ),
+                                    fileUrl: book['file_url'] ?? 'sample.pdf',
+                                  ),
+                                ),
+                              ).then((_) {
+                                _fetchLatestReading();
+                                _fetchGamificationStats();
+                              });
+                            },
+                            child: Container(
+                              width: 120,
+                              margin: const EdgeInsets.only(right: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 120,
+                                    height: 110,
+                                    decoration: BoxDecoration(
+                                      color: Colors.amber[100],
+                                      borderRadius: BorderRadius.circular(14),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.05),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.book,
+                                      size: 50,
+                                      color: Colors.orange,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    book['title'] ?? '',
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      height: 1.2,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                  const SizedBox(height: 30),
+
+                  // --- TUGAS TERTUNDA ---
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.assignment_late,
+                        color: Colors.red[400],
+                        size: 24,
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        "Tugas Tertunda",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (_isLoadingTugas)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_listTugasTertunda.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.green.shade200),
+                      ),
+                      child: const Column(
+                        children: [
+                          Text("🎉", style: TextStyle(fontSize: 40)),
+                          SizedBox(height: 8),
+                          Text(
+                            "Hore! Semua tugas sudah selesai.",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Column(
+                      children: _listTugasTertunda.map((tugas) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(
+                              color: Colors.red.shade100,
+                              width: 2,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.red.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Image.asset("../assets/book-img.png"),
-
-                              SizedBox(width: 16),
-
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.red[50],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.calculate,
+                                  color: Colors.red[400],
+                                  size: 30,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      "Si Kancil dan Buaya",
-                                      style: TextStyle(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight(800),
-                                        fontSize: 24,
-                                      ),
-                                    ),
-
-                                    SizedBox(height: 8),
-
-                                    Text(
-                                      "Terakhir dibaca 2 jam lalu",
-                                      style: TextStyle(
-                                        color: Colors.black26,
-                                        fontWeight: FontWeight(500),
+                                      tugas['title'] ?? '',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
                                         fontSize: 16,
                                       ),
                                     ),
-
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.all(
-                                        Radius.circular(10),
-                                      ),
-                                      child: LinearProgressIndicator(
-                                        value: 0.5,
-                                        backgroundColor: Colors.grey[300],
-                                        valueColor: AlwaysStoppedAnimation(
-                                          Colors.blue,
-                                        ),
-                                        minHeight: 10,
-                                      ),
-                                    ),
-
-                                    SizedBox(height: 8),
-
+                                    const SizedBox(height: 4),
                                     Text(
-                                      "Halaman 24 dari 80 (30%)",
+                                      tugas['due_date'] != null
+                                          ? "Tenggat: ${tugas['due_date'].toString().substring(0, 10)}"
+                                          : "Tidak ada batas waktu",
                                       style: TextStyle(
-                                        color: Colors.black26,
-                                        fontWeight: FontWeight(500),
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    SizedBox(height: 8),
-
-                                    ElevatedButton(
-                                      onPressed: () {},
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            "Lanjutkan Membaca",
-                                            style: TextStyle(
-                                              color: Colors.blue[900],
-                                              fontWeight: FontWeight(800),
-                                              fontSize: 16,
-                                            ),
-                                          ),
-
-                                          Icon(
-                                            Icons.play_arrow,
-                                            color: Colors.blue[900],
-                                            size: 32,
-                                          ),
-                                        ],
+                                        color: Colors.red[400],
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => KerjakanTugasPage(
+                                        studentId: widget.studentId,
+                                        taskId: int.parse(
+                                          tugas['id'].toString(),
+                                        ),
+                                        taskTitle: tugas['title'] ?? '',
+                                      ),
+                                    ),
+                                  ).then((_) {
+                                    _fetchTugasTertunda();
+                                    _fetchTugasSelesai();
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red[400],
+                                ),
+                                child: const Text(
+                                  "Kerjakan",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
                             ],
                           ),
+                        );
+                      }).toList(),
+                    ),
+
+                  const SizedBox(height: 30),
+
+                  // --- KATEGORI BELAJAR ---
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.grid_view_rounded,
+                        color: Colors.blue[900],
+                        size: 24,
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        "Kategori Belajar",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
 
-                  SizedBox(height: 20),
+                  if (_isLoadingKategori)
+                    const Center(
+                      child: CircularProgressIndicator(color: Colors.blue),
+                    )
+                  else
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _listKategori.length,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            mainAxisExtent: 140,
+                          ),
+                      itemBuilder: (context, index) {
+                        final kat = _listKategori[index];
+                        final Color baseColor = _parseHexColor(
+                          kat['color_hex'],
+                        );
+                        final int categoryId = int.parse(kat['id'].toString());
 
-                  Column(
+                        return InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => DaftarModulPage(
+                                  studentId: widget.studentId,
+                                  categoryId: categoryId,
+                                  categoryName: kat['name'] ?? 'Materi Belajar',
+                                  colorHex: kat['color_hex'] ?? '#2196F3',
+                                  iconName: kat['icon'],
+                                ),
+                              ),
+                            );
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: CardModule(
+                            icons: _getCategoryIcon(kat['icon']),
+                            colorsIc: baseColor,
+                            colors: baseColor.withOpacity(0.12),
+                            colorsTitle: baseColor.withOpacity(0.9),
+                            colorsCount: baseColor.withOpacity(0.6),
+                            title: kat['name'] ?? '',
+                            count: "${kat['total_modul']} modul",
+                          ),
+                        );
+                      },
+                    ),
+
+                  const SizedBox(height: 35),
+
+                  // --- RIWAYAT TUGAS & NILAI VALIDASI ---
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.track_changes,
-                            color: Colors.blue[900],
-                            size: 24,
-                          ),
-
-                          SizedBox(width: 10),
-
-                          Text(
-                            "Kategori Belajar",
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 24,
-                              fontWeight: FontWeight(800),
-                            ),
-                          ),
-                        ],
+                      Icon(
+                        Icons.assignment_turned_in_rounded,
+                        color: Colors.green[600],
+                        size: 24,
                       ),
-
-                      SizedBox(height: 20),
-
-                      GridView.count(
-                        shrinkWrap: true,
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        physics: NeverScrollableScrollPhysics(),
-                        mainAxisExtent: 160,
-                        children: [
-                          CardModule(
-                            icons: Icons.calculate,
-                            colorsIc: Colors.red.shade400,
-                            colors: Colors.red.shade100,
-                            colorsTitle: Colors.red.shade400,
-                            colorsCount: Colors.red.shade300,
-                            title: "Matematika",
-                            count: "12 modul",
-                          ),
-                          CardModule(
-                            icons: Icons.biotech,
-                            colorsIc: Colors.green.shade400,
-                            colors: Colors.green.shade100,
-                            colorsTitle: Colors.green.shade400,
-                            colorsCount: Colors.green.shade300,
-                            title: "IPA",
-                            count: "9 modul",
-                          ),
-                          CardModule(
-                            icons: Icons.public,
-                            colorsIc: Colors.blue.shade800,
-                            colors: Colors.indigo.shade100,
-                            colorsTitle: Colors.indigo.shade400,
-                            colorsCount: Colors.indigo.shade300,
-                            title: "IPS",
-                            count: "21 modul",
-                          ),
-                          CardModule(
-                            icons: Icons.book_online_rounded,
-                            colorsIc: Colors.orange.shade400,
-                            colors: Colors.orange.shade100,
-                            colorsTitle: Colors.orange.shade400,
-                            colorsCount: Colors.orange.shade300,
-                            title: "B.Indonesia",
-                            count: "11 modul",
-                          ),
-                        ],
+                      const SizedBox(width: 10),
+                      const Text(
+                        "Riwayat Tugas Selesai",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+
+                  if (_isLoadingTugasSelesai)
+                    const Center(
+                      child: CircularProgressIndicator(color: Colors.green),
+                    )
+                  else if (_listTugasSelesai.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 10),
+                      child: Text(
+                        "Belum ada tugas yang kamu kumpulkan.",
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    )
+                  else
+                    Column(
+                      children: _listTugasSelesai.map((itemTugas) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.grey.shade200,
+                              width: 2,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    itemTugas['title'] ?? '',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    "Dikirim: ${itemTugas['submitted_at'] != null ? itemTugas['submitted_at'].toString().substring(0, 10) : '-'}",
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (itemTugas['status'] == 'pending')
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber[50],
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    "Diproses ⏳",
+                                    style: TextStyle(
+                                      color: Colors.amber[800],
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                )
+                              else
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green[50],
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    "Nilai: ${itemTugas['score'] ?? '0'}",
+                                    style: const TextStyle(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
                 ],
               ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 }
+
+// ================= WIDGET KOMPONEN PENDUKUNG =================
 
 class CardModule extends StatelessWidget {
   final IconData icons;
@@ -360,35 +1161,31 @@ class CardModule extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: colors,
-        borderRadius: BorderRadius.all(Radius.circular(10)),
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
       ),
-
       child: Padding(
-        padding: EdgeInsets.all(12),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icons, size: 32, color: colorsIc),
-
-            SizedBox(height: 8),
-
+            const SizedBox(height: 12),
             Text(
               title,
               style: TextStyle(
                 color: colorsTitle,
-                fontSize: 24,
-                fontWeight: FontWeight(800),
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
               ),
             ),
-            SizedBox(height: 8),
-
+            const SizedBox(height: 4),
             Text(
               count,
               style: TextStyle(
                 color: colorsCount,
-                fontSize: 16,
-                fontWeight: FontWeight(500),
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -415,44 +1212,40 @@ class CardAchiev extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 140,
-      height: 70,
+      width: MediaQuery.of(context).size.width * 0.28,
+      padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white38,
+        color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Padding(
-        padding: EdgeInsets.all(8),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icons, color: colors, size: 32),
-
-                SizedBox(width: 6),
-                Text(
-                  values,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight(800),
-                    fontSize: 24,
-                  ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icons, color: colors, size: 24),
+              const SizedBox(width: 4),
+              Text(
+                values,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 20,
                 ),
-              ],
-            ),
-
-            Text(
-              desc,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight(800),
-                fontSize: 14,
               ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            desc,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
