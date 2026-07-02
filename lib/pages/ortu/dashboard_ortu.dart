@@ -1,349 +1,266 @@
 import 'package:flutter/material.dart';
-import 'halaman_riwayat.dart';
-
-void main() {
-  runApp(
-    const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: DashboardOrtuScreen(),
-    ),
-  );
-}
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../../api_config.dart'; // Pastikan path file configurasi URL API kamu benar
 
 class DashboardOrtuScreen extends StatefulWidget {
-  const DashboardOrtuScreen({super.key});
+  final int parentId; // Menerima ID Orang tua yang dikirim saat sukses login
+
+  const DashboardOrtuScreen({Key? key, required this.parentId}) : super(key: key);
 
   @override
   State<DashboardOrtuScreen> createState() => _DashboardOrtuScreenState();
 }
 
 class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
+  // Objek penampung data dari database
+  Map<String, dynamic> _stats = {
+    'buku_selesai': 0,
+    'sedang_dibaca': 0,
+    'total_durasi': '0 jam',
+    'poin_anak': 0,
+  };
+  List<dynamic> _readingLogs = [];
+  String _childName = "Anak";
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboardData();
+  }
+
+  // JALUR PENGAMBILAN DATA DARI API BACKEND
+  Future<void> _fetchDashboardData() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/ortucontroller/dashboard/${widget.parentId}'),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        setState(() {
+          _stats = responseData['stats'];
+          _readingLogs = responseData['reading_logs'];
+          _childName = responseData['child_name'] ?? "Anak";
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      debugPrint("Error fetching dashboard data: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          Colors.grey[50], // Latar belakang halaman krem/putih lembut
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ==================== KARTU UTAMA UTK DASHBOARD (KODEMU) ====================
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Container(
-                  width: MediaQuery.of(context).size.width,
-                  // height statis dihapus agar konten GridView di dalamnya fleksibel & tidak overflow
-                  decoration: BoxDecoration(
-                    color: Colors.indigo.shade300,
-                    borderRadius: const BorderRadius.all(Radius.circular(20)),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  "Halo, Bu Sari 👋",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight
-                                        .w800, // Diperbaiki dari FontWeight(800)
-                                  ),
-                                ),
-                                Text(
-                                  "Pantau aktivitas belajar Andi",
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(
-                                      0.8,
-                                    ), // Diperbaiki agar lebih terbaca
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: Colors.white12,
-                                borderRadius: BorderRadius.circular(50),
-                                border: Border.all(
-                                  color: Colors.white,
-                                  strokeAlign: BorderSide.strokeAlignOutside,
-                                  style: BorderStyle.solid,
-                                  width: 3,
-                                ),
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  "S",
-                                  style: TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        GridView.count(
-                          shrinkWrap: true,
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          physics: const NeverScrollableScrollPhysics(),
-                          mainAxisExtent: 80,
-                          children: const [
-                            CardContainer(
-                              icons: Icons.book,
-                              jumlah: "5",
-                              judul: "Buku Selesai",
-                            ),
-                            CardContainer(
-                              icons: Icons.menu_book,
-                              jumlah: "2",
-                              judul: "Sedang Dibaca",
-                            ),
-                            CardContainer(
-                              icons: Icons.access_time,
-                              jumlah: "3 jam",
-                              judul: "Total Durasi",
-                            ),
-                            CardContainer(
-                              icons: Icons.star,
-                              jumlah: "12",
-                              judul: "Poin Anak",
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        title: const Text("Dashboard Orang Tua", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF6C7EE1), // Warna senada ungu/periwinkle utama
+        foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              setState(() => _isLoading = true);
+              _fetchDashboardData();
+            },
+          )
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF6C7EE1)))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ======================= COMPONENT 1: HEADER BANNER GRADIENT =======================
+                  _buildHeaderCard(),
+                  const SizedBox(height: 24),
 
-              // ==================== HALAMAN RIWAYAT MEMBACA (DARI GAMBAR) ====================
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 10,
-                ),
+                  // ======================= COMPONENT 2: DAFTAR BUKU SEDANG DIBACA =======================
+                  Row(
+                    children: [
+                      const Icon(Icons.menu_book_rounded, color: Colors.blue, size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Sedang Dibaca $_childName",
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Kondisional pengecekan jika anak tidak/belum membaca buku apapun
+                  _readingLogs.isEmpty
+                      ? Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                          child: Center(
+                            child: Text(
+                              "$_childName belum membaca buku baru saat ini.",
+                              style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                            ),
+                          ),
+                        )
+                      : Column(
+                          // Looping widget card mengikuti isi list database logs
+                          children: _readingLogs.map((log) => _buildReadingCard(log)).toList(),
+                        ),
+                ],
+              ),
+            ),
+    );
+  }
+
+  // WIDGET GENERATOR UNTUK BANNER GRADIENT ATAS
+  Widget _buildHeaderCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF7A8CE8), Color(0xFF5A6BC8)], // Kombinasi ungu-periwinkle mewah
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // --- Bagian: Sedang Dibaca ---
-                    const SectionHeader(
-                      icon: Icons.menu_book_rounded,
-                      title: "Sedang Dibaca Andi",
-                      iconColor: Colors.blue,
+                    const Text(
+                      "Halo, Wali Murid! 👋", // Bisa diganti session nama ortu jika disimpan
+                      style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 12),
-                    const ReadingBookCard(),
-
-                    const SizedBox(height: 25),
-
-                    // --- Bagian: Sudah Selesai ---
-                    const SectionHeader(
-                      icon: Icons.check_circle,
-                      title: "Sudah Selesai",
-                      iconColor: Colors.green,
+                    const SizedBox(height: 4),
+                    Text(
+                      "Pantau aktivitas belajar $_childName",
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
                     ),
-                    const SizedBox(height: 12),
-                    const CompletedBookCard(),
-
-                    const SizedBox(height: 25),
-
-                    // --- Bagian: Tombol Aksi ---
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ActionButton(
-                            color: Colors.blue[400]!,
-                            icon: Icons.cloud_upload_rounded,
-                            text: "Upload Buku",
-                            onPressed: () {},
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: ActionButton(
-                            color: const Color(0xFFBC8FFD),
-                            icon: Icons.bar_chart_rounded,
-                            text: "Lihat Riwayat",
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const HalamanRiwayat(),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 25),
                   ],
                 ),
               ),
+              CircleAvatar(
+                backgroundColor: Colors.white.withOpacity(0.25),
+                radius: 24,
+                child: const Text("W", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+              )
             ],
           ),
-        ),
+          const SizedBox(height: 20),
+          
+          // GRID STATISTIK 2 KOLOM x 2 BARIS
+          Row(
+            children: [
+              Expanded(child: _buildGridItem("${_stats['buku_selesai']}", "Buku Selesai", Icons.assignment_turned_in)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildGridItem("${_stats['sedang_dibaca']}", "Sedang Dibaca", Icons.chrome_reader_mode)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildGridItem("${_stats['total_durasi']}", "Total Durasi", Icons.access_time_filled)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildGridItem("${_stats['poin_anak']}", "Poin Anak", Icons.stars)),
+            ],
+          )
+        ],
       ),
     );
   }
-}
 
-// ==================== WIDGET PENDUKUNG ====================
-
-// Widget Grid milikmu yang sudah diperbaiki
-class CardContainer extends StatelessWidget {
-  final IconData icons;
-  final String jumlah;
-  final String judul;
-  const CardContainer({
-    super.key,
-    required this.icons,
-    required this.jumlah,
-    required this.judul,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  // ITEM CARD KECIL DI DALAM GRID UTAMA
+  Widget _buildGridItem(String value, String label, IconData icon) {
     return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              jumlah,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 22,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icons, size: 14, color: Colors.white70),
-                const SizedBox(width: 4),
-                Text(
-                  judul,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+      child: Column(
+        children: [
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white70, size: 14),
+              const SizedBox(width: 6),
+              Text(label, style: const TextStyle(color: Colors.white, fontSize: 11)),
+            ],
+          )
+        ],
       ),
     );
   }
-}
 
-// Widget Judul Section (Sedang Dibaca / Sudah Selesai)
-class SectionHeader extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final Color iconColor;
+  // WIDGET GENERATOR UNTUK KARTU BUKU "SEDANG DIBACA" (ANTI-OVERFLOW)
+  Widget _buildReadingCard(Map<String, dynamic> log) {
+    // 1. Ambil data mentah numerik dari map
+    int lastPage = log['last_page'] ?? 0;
+    int totalPages = log['total_pages'] ?? 1; // Cegah pembagian angka dengan nol (division by zero)
 
-  const SectionHeader({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.iconColor,
-  });
+    // 2. Kalkulasi persentase matematika untuk progress bar
+    double progressPercent = lastPage / totalPages;
+    int displayPercent = (progressPercent * 100).clamp(0, 100).toInt(); // Amankan di range 0-100%
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: iconColor, size: 28),
-        const SizedBox(width: 10),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF2D2D2D),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// Widget Kartu Buku Sedang Dibaca
-class ReadingBookCard extends StatelessWidget {
-  const ReadingBookCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 3))
         ],
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
+              // Wadah Ikon Buku Berwarna Kuning Singa Estetik
               Container(
-                width: 55,
-                height: 55,
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFC107), // Warna Oranye Singa
-                  borderRadius: BorderRadius.circular(12),
+                  color: const Color(0xFFFFC107), // Warna oranye/kuning ikon singa
+                  borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Center(
-                  child: Text("🦁", style: TextStyle(fontSize: 28)),
-                ),
+                child: const Icon(Icons.emoji_nature_rounded, color: Colors.white, size: 24),
               ),
               const SizedBox(width: 14),
+              
+              // Informasi Utama Judul Buku
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Si Kancil dan Buaya",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Text(
+                      log['title'] ?? 'Buku Bacaan',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.black87),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Terakhir baca: Hari ini, 14:30",
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      "Terakhir baca: ${log['last_read_at'] ?? '-'}",
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                     ),
                   ],
                 ),
@@ -351,152 +268,23 @@ class ReadingBookCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
+
+          // PROGRESS BAR PROGRES MEMBACA ANAK
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
-              value: 0.3,
-              minHeight: 10,
-              backgroundColor: Colors.grey[200],
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+              value: progressPercent.clamp(0.0, 1.0), // Amankan bar pengisi agar tidak overflow melebihi lebar kontainer
+              backgroundColor: Colors.grey[100],
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue), // Warna bar biru sesuai gambar
+              minHeight: 7,
             ),
           ),
           const SizedBox(height: 10),
-          const Text(
-            "Hal. 24 dari 80 • 30% • 45 menit baca",
-            style: TextStyle(
-              color: Colors.blue,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
-// Widget Kartu Buku Sudah Selesai
-class CompletedBookCard extends StatelessWidget {
-  const CompletedBookCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 55,
-                height: 55,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4285F4), // Warna Biru Ikan
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Center(
-                  child: Text("🐟", style: TextStyle(fontSize: 28)),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Dunia Bawah Laut",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Selesai: Kemarin, 16:00",
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: const LinearProgressIndicator(
-              value: 1.0,
-              minHeight: 8,
-              backgroundColor: Colors.transparent,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Row(
-            children: [
-              Icon(Icons.check_box, color: Colors.green, size: 18),
-              SizedBox(width: 6),
-              Text(
-                "Selesai • 1 jam 50 menit baca",
-                style: TextStyle(
-                  color: Colors.green,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Widget Tombol Aksi di bagian bawah (Upload & Riwayat)
-class ActionButton extends StatelessWidget {
-  final Color color;
-  final IconData icon;
-  final String text;
-  final VoidCallback onPressed;
-
-  const ActionButton({
-    super.key,
-    required this.color,
-    required this.icon,
-    required this.text,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        elevation: 0,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 22),
-          const SizedBox(width: 8),
+          // DETAIL INDIKATOR TEXT BARIS BAWAH
           Text(
-            text,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            "Hal. $lastPage dari $totalPages • $displayPercent% • ${log['reading_duration']} menit baca",
+            style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold),
           ),
         ],
       ),
