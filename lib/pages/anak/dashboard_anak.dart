@@ -9,6 +9,9 @@ import 'dart:convert';
 import '../../api_config.dart';
 import 'package:http/http.dart' as http;
 
+// IMPORT HALAMAN ACHIEVEMENT DI SINI
+import 'achievement_screen.dart';
+
 class HomePage extends StatefulWidget {
   final int studentId;
   final String studentName;
@@ -58,11 +61,13 @@ class _HomePageState extends State<HomePage> {
 
   // ================= AMBIL DATA DARI API BACKEND =================
 
-  // Ambil Koleksi Semua Buku Cerita untuk Rak Buku
+  // Ambil Koleksi Semua Buku Cerita untuk Rak Buku (Difilter sesuai Guru)
   Future<void> _fetchAllEbooks() async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl_siswa}/siswa/all-ebooks'),
+        Uri.parse(
+          '${ApiConfig.baseUrl_siswa}/siswa/all-ebooks/${widget.studentId}',
+        ),
       );
       if (response.statusCode == 200) {
         if (mounted) {
@@ -92,9 +97,9 @@ class _HomePageState extends State<HomePage> {
         final data = jsonDecode(response.body)['data'];
         if (mounted) {
           setState(() {
-            _totalPoin = data['total_poin'];
-            _totalBadge = data['total_badge'];
-            _hariStreak = data['hari_streak'];
+            _totalPoin = data['total_poin'] ?? 0;
+            _totalBadge = data['total_badge'] ?? 0;
+            _hariStreak = data['hari_streak'] ?? 0;
             _isLoadingStats = false;
           });
         }
@@ -215,7 +220,6 @@ class _HomePageState extends State<HomePage> {
           ),
           title: const Row(
             children: [
-              Text("🥺 ", style: TextStyle(fontSize: 24)),
               Text(
                 "Mau Keluar?",
                 style: TextStyle(
@@ -237,7 +241,7 @@ class _HomePageState extends State<HomePage> {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
-                "Tidak, Tetap Belajar 🚀",
+                "Tidak, Tetap Belajar",
                 style: TextStyle(
                   color: Colors.blue[700],
                   fontWeight: FontWeight.bold,
@@ -247,7 +251,7 @@ class _HomePageState extends State<HomePage> {
             ),
             ElevatedButton(
               onPressed: () async {
-                // 🔐 MEMBERSIHKAN SELURUH DATA SESI DAN TOKEN DI HP ANAK
+                // MEMBERSIHKAN SELURUH DATA SESI DAN TOKEN DI HP ANAK
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.clear();
 
@@ -321,13 +325,62 @@ class _HomePageState extends State<HomePage> {
         : "S";
 
     return Scaffold(
+      // ======================================================================
+      // BOTTOM NAVIGATION BAR (TAMBAHAN UNTUK TAMPILAN ANAK)
+      // ======================================================================
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: 0, // Indeks 0 (Beranda) aktif di halaman ini
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: Colors.blue, // Warna biru sesuai tema anak
+          unselectedItemColor: Colors.grey.shade500,
+          selectedFontSize: 12,
+          unselectedFontSize: 11,
+          onTap: (index) {
+            if (index == 1) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      PerpustakaanPage(studentId: widget.studentId),
+                ),
+              ).then((_) {
+                _fetchLatestReading();
+                _fetchAllEbooks();
+              });
+            }
+          },
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded),
+              label: 'Beranda',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.library_books_rounded),
+              label: 'Perpustakaan',
+            ),
+          ],
+        ),
+      ),
+
+      // ======================================================================
       body: SingleChildScrollView(
         child: Column(
           children: [
             // --- HEADER GAMIFIKASI KEPALA BERANDA ---
             Container(
               width: MediaQuery.of(context).size.width,
-              height: 200,
+              // height: 200, -> Dihapus agar kotak fleksibel menyesuaikan isinya
               decoration: const BoxDecoration(
                 color: Colors.blue,
                 borderRadius: BorderRadius.only(
@@ -336,7 +389,12 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.only(
+                  top: 48,
+                  left: 16,
+                  right: 16,
+                  bottom: 24,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -347,7 +405,7 @@ class _HomePageState extends State<HomePage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              "Hai, Selamat Belajar ✨",
+                              "Hai, Selamat Belajar",
                               style: TextStyle(
                                 color: Colors.white54,
                                 fontWeight: FontWeight.w500,
@@ -408,42 +466,79 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        CardAchiev(
-                          icons: Icons.star,
-                          colors: Colors.amber,
-                          values: _isLoadingStats
-                              ? "..."
-                              : _totalPoin.toString(),
-                          desc: "Total Poin",
+                    const SizedBox(height: 24),
+
+                    // ========================================================
+                    // ✅ AREA INI DIUBAH AGAR BISA DI-KLIK KE HALAMAN ACHIEVEMENT
+                    // ========================================================
+                    GestureDetector(
+                      onTap: () {
+                        // Membuka halaman koleksi badge
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                AchievementScreen(studentId: widget.studentId),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        color: Colors
+                            .transparent, // Penting agar bisa di-klik di area kosong
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                CardAchiev(
+                                  icons: Icons.star,
+                                  colors: Colors.amber,
+                                  values: _isLoadingStats
+                                      ? "..."
+                                      : _totalPoin.toString(),
+                                  desc: "Total Poin",
+                                ),
+                                CardAchiev(
+                                  icons: Icons.workspace_premium,
+                                  colors: Colors.brown.shade200,
+                                  values: _isLoadingStats
+                                      ? "..."
+                                      : _totalBadge.toString(),
+                                  desc: "Badge",
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  "Lihat Koleksi Badge-mu 🏆",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: Colors.white.withOpacity(0.9),
+                                  size: 14,
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        CardAchiev(
-                          icons: Icons.workspace_premium,
-                          colors: Colors.brown.shade200,
-                          values: _isLoadingStats
-                              ? "..."
-                              : _totalBadge.toString(),
-                          desc: "Badge",
-                        ),
-                        CardAchiev(
-                          icons: Icons.local_fire_department,
-                          colors: Colors.amber.shade900,
-                          values: _isLoadingStats
-                              ? "..."
-                              : _hariStreak.toString(),
-                          desc: "Hari Streak",
-                        ),
-                      ],
+                      ),
                     ),
+                    // ========================================================
                   ],
                 ),
               ),
             ),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 30),
 
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -521,7 +616,7 @@ class _HomePageState extends State<HomePage> {
                                             _latestBookLog!['total_pages']
                                                 .toString(),
                                           )
-                                      ? "🎉 Hore! Sudah selesai kamu baca"
+                                      ? "✨ Hore! Sudah selesai kamu baca"
                                       : "Terakhir dibaca baru saja",
                                   style: TextStyle(
                                     color:
@@ -643,7 +738,7 @@ class _HomePageState extends State<HomePage> {
                                               _latestBookLog!['total_pages']
                                                   .toString(),
                                             )
-                                        ? "Baca Lagi 🔄"
+                                        ? "Baca Lagi 📖"
                                         : "Lanjutkan",
                                     style: const TextStyle(
                                       color: Colors.white,
@@ -673,7 +768,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           const SizedBox(width: 10),
                           const Text(
-                            "Rak Buku Cerita",
+                            "Perpustakaan",
                             style: TextStyle(
                               color: Colors.black,
                               fontSize: 20,
@@ -801,7 +896,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(width: 10),
                       const Text(
-                        "Tugas Tertunda",
+                        "Tugas",
                         style: TextStyle(
                           color: Colors.black,
                           fontSize: 20,
@@ -825,7 +920,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       child: const Column(
                         children: [
-                          Text("🎉", style: TextStyle(fontSize: 40)),
+                          Text("✨", style: TextStyle(fontSize: 40)),
                           SizedBox(height: 8),
                           Text(
                             "Hore! Semua tugas sudah selesai.",
@@ -1080,7 +1175,9 @@ class _HomePageState extends State<HomePage> {
                                   ),
                                 ],
                               ),
-                              if (itemTugas['status'] == 'pending')
+
+                              if (itemTugas['score'] == null ||
+                                  itemTugas['status'] == 'pending')
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 12,
@@ -1110,7 +1207,7 @@ class _HomePageState extends State<HomePage> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Text(
-                                    "Nilai: ${itemTugas['score'] ?? '0'}",
+                                    "Nilai: ${itemTugas['score']}",
                                     style: const TextStyle(
                                       color: Colors.green,
                                       fontWeight: FontWeight.bold,
