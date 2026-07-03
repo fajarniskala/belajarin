@@ -25,6 +25,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _selectedSubject;
   bool _isLoadingCategories = true;
 
+  String? _selectedClass;
+
   @override
   void initState() {
     super.initState();
@@ -75,6 +77,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
         return;
       }
+      if (_selectedClass == null) {
+        _showSnackBar('Kelas ajar wajib dipilih!', Colors.orange);
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -93,6 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body['subject_specialization'] =
           _selectedSubject; // Menggunakan value dari dropdown
       body['bio'] = _bioController.text.trim();
+      body['class_grade'] = _selectedClass;
     }
 
     try {
@@ -151,7 +158,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _bioController.clear();
     setState(() {
       _selectedRole = 'parent';
-      _selectedSubject = null; // Reset dropdown mapel
+      _selectedSubject = null;
+      _selectedClass = null; // Reset dropdown mapel
     });
   }
 
@@ -357,6 +365,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     });
                                   },
                                 ),
+
+                          const SizedBox(height: 16),
+                          DropdownButtonFormField<String>(
+                            value: _selectedClass,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              labelText: 'Kelas Pengajaran',
+                              prefixIcon: const Icon(
+                                Icons.meeting_room_outlined,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: Colors.grey.shade300,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF4A90E2),
+                                ),
+                              ),
+                            ),
+                            // Opsi pilihan kelas (bisa disesuaikan dengan range sekolah dasar/menengah proyekmu)
+                            items:
+                                [
+                                  'Kelas 1',
+                                  'Kelas 2',
+                                  'Kelas 3',
+                                  'Kelas 4',
+                                  'Kelas 5',
+                                  'Kelas 6',
+                                ].map<DropdownMenuItem<String>>((String value) {
+                                  return DropdownMenuItem<String>(
+                                    value: value,
+                                    child: Text(value),
+                                  );
+                                }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedClass = value;
+                              });
+                            },
+                          ),
 
                           // -------------------------
                           const SizedBox(height: 16),
