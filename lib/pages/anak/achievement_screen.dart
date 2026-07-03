@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../../api_config.dart'; // Sesuaikan path ini dengan folder kamu
 
 // ==========================================
 // 1. MODEL
 // ==========================================
 class AchievementModel {
+  final int id;
   final String title;
   final String description;
   final int point;
@@ -11,31 +15,39 @@ class AchievementModel {
   final bool unlocked;
 
   AchievementModel({
+    required this.id,
     required this.title,
     required this.description,
     required this.point,
     required this.icon,
     required this.unlocked,
   });
-}
 
-// ==========================================
-// 2. RULES
-// ==========================================
-class AchievementRule {
-  static const int firstReaderPoint = 100;
-  static const int diligentReaderPoint = 150;
-  static const int bookWormPoint = 300;
-  static const int speedReaderPoint = 120;
-  static const int explorerPoint = 80;
+  factory AchievementModel.fromJson(Map<String, dynamic> json) {
+    String dbIcon = json['icon']?.toString().toLowerCase() ?? '';
+    String emojiIcon = "🏆"; 
+    
+    if (dbIcon.contains('book')) emojiIcon = "🏅";
+    else if (dbIcon.contains('worm')) emojiIcon = "🐛";
+    else if (dbIcon.contains('streak')) emojiIcon = "⭐";
+    else if (dbIcon.contains('flash')) emojiIcon = "⚡";
+    else if (dbIcon.contains('explore')) emojiIcon = "🗺️";
+    else if (dbIcon.contains('star')) emojiIcon = "🌟";
+    else if (dbIcon.contains('flame')) emojiIcon = "🔥";
 
-  static int calculateTotalPoint(List<int> points) {
-    return points.fold(0, (sum, item) => sum + item);
+    return AchievementModel(
+      id: int.tryParse(json['id'].toString()) ?? 0,
+      title: json['title'] ?? 'Pencapaian',
+      description: json['description'] ?? '',
+      point: int.tryParse(json['points_reward']?.toString() ?? '0') ?? 0,
+      icon: emojiIcon,
+      unlocked: json['unlocked'].toString() == '1' || json['unlocked'] == true,
+    );
   }
 }
 
 // ==========================================
-// 3. CONTROLLER
+// 2. CONTROLLER (LOGIKA PERHITUNGAN)
 // ==========================================
 class AchievementController {
   static int totalPoint(List<AchievementModel> achievements) {
@@ -50,13 +62,13 @@ class AchievementController {
 }
 
 // ==========================================
-// 4. CARD WIDGET
+// 3. CARD WIDGET
 // ==========================================
 class AchievementCard extends StatelessWidget {
   final AchievementModel achievement;
   final VoidCallback? onTap;
 
-  const AchievementCard({super.key, required this.achievement, this.onTap});
+  const AchievementCard({super.key, required this.achievement, this.onTap}); // ✅ Sudah diperbaiki di sini
 
   @override
   Widget build(BuildContext context) {
@@ -130,59 +142,61 @@ class AchievementCard extends StatelessWidget {
 }
 
 // ==========================================
-// 5. PAGE WIDGET (SCREEN)
+// 4. PAGE WIDGET (SCREEN)
 // ==========================================
-class AchievementScreen extends StatelessWidget {
-  AchievementScreen({super.key});
+class AchievementScreen extends StatefulWidget {
+  final int studentId;
 
-  final List<AchievementModel> achievements = [
-    AchievementModel(
-      title: "Calon Ilmuwan",
-      description: "Selesaikan 1 e-book pertama kali",
-      point: 100,
-      icon: "🏅",
-      unlocked: true,
-    ),
-    AchievementModel(
-      title: "Rajin Membaca",
-      description: "Baca e-book 7 hari berturut-turut",
-      point: 150,
-      icon: "⭐",
-      unlocked: true,
-    ),
-    AchievementModel(
-      title: "Seperti Detektif",
-      description: "Selesaikan 5 e-book",
-      point: 300,
-      icon: "🐛",
-      unlocked: false,
-    ),
-    AchievementModel(
-      title: "Blitzkrieg",
-      description: "Selesaikan 1 buku dalam 1 hari",
-      point: 120,
-      icon: "⚡",
-      unlocked: false,
-    ),
-    AchievementModel(
-      title: "Jendela Dunia",
-      description: "Buka lebih dari 50 halaman berbeda",
-      point: 80,
-      icon: "🗺️",
-      unlocked: false,
-    ),
-  ];
+  const AchievementScreen({super.key, required this.studentId});
+
+  @override
+  State<AchievementScreen> createState() => _AchievementScreenState();
+}
+
+class _AchievementScreenState extends State<AchievementScreen> {
+  List<AchievementModel> _achievements = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAchievements();
+  }
+
+  Future<void> _fetchAchievements() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl_siswa}/siswa/achievements/${widget.studentId}'),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body)['data'];
+        if (mounted) {
+          setState(() {
+            _achievements = data.map((json) => AchievementModel.fromJson(json)).toList();
+            _isLoading = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+      debugPrint("Error fetching achievements: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final totalBadge = AchievementController.totalBadge(achievements);
-    final totalPoint = AchievementController.totalPoint(achievements);
+    final totalBadge = AchievementController.totalBadge(_achievements);
+    final totalPoint = AchievementController.totalPoint(_achievements);
 
     return Scaffold(
       backgroundColor: const Color(0xffF6F1EB),
       appBar: AppBar(
         backgroundColor: const Color(0xffF4D13D),
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.brown),
         title: const Text(
           "BADGE & ACHIEVEMENT",
           style: TextStyle(color: Colors.brown, fontWeight: FontWeight.bold),
@@ -215,27 +229,40 @@ class AchievementScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "$totalBadge badge diraih • $totalPoint total poin",
+                  _isLoading 
+                    ? "Menghitung koleksimu..." 
+                    : "$totalBadge badge diraih • $totalPoint total poin",
                   style: const TextStyle(color: Colors.white, fontSize: 20),
                 ),
               ],
             ),
           ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: achievements.length,
-              itemBuilder: (_, index) {
-                return AchievementCard(
-                  achievement: achievements[index],
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(achievements[index].title)),
-                    );
-                  },
-                );
-              },
-            ),
-          ),
+          _isLoading
+              ? const Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(color: Color(0xffFF9F1C)),
+                  ),
+                )
+              : Expanded(
+                  child: _achievements.isEmpty 
+                    ? const Center(child: Text("Belum ada data badge", style: TextStyle(color: Colors.grey)))
+                    : ListView.builder(
+                        itemCount: _achievements.length,
+                        itemBuilder: (_, index) {
+                          return AchievementCard(
+                            achievement: _achievements[index],
+                            onTap: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Kamu meraih: ${_achievements[index].title}!"),
+                                  backgroundColor: Colors.orange,
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                ),
         ],
       ),
     );
