@@ -3,6 +3,11 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../api_config.dart';
 
+// ---> TAMBAHAN IMPORTS UNTUK NAVIGASI BAWAH <---
+import 'tambah_modul_page.dart';
+import 'rekap_nilai_page.dart';
+import 'upload_ebook_page.dart';
+
 class TambahSiswaPage extends StatefulWidget {
   final int guruId; // Menerima ID Guru dari halaman Dashboard
 
@@ -29,15 +34,11 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
   // List kosong yang akan diisi dari database MySQL
   List<Map<String, dynamic>> _listOrangTua = [];
 
-  // PENTING: Sesuaikan base URL ini. 
-  // Gunakan 'http://10.0.2.2:8080' jika di Emulator Android.
-  // Gunakan 'http://localhost:8080' jika di Flutter Web.
   final String _baseUrl = '${ApiConfig.baseUrl}/gurucontroller';
 
   @override
   void initState() {
     super.initState();
-    // Tarik data dropdown orang tua sesaat setelah halaman dibuka
     _fetchParents();
   }
 
@@ -85,7 +86,6 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
 
   // --- FUNGSI POST: Menyimpan Data Siswa Baru ke CI4 ---
   Future<void> _submitData() async {
-    // Jalankan validasi form
     if (_formKey.currentState!.validate()) {
       if (_selectedParentId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -101,7 +101,6 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
         _isLoading = true;
       });
 
-      // Data JSON yang akan dikirim
       final dataSiswaBaru = {
         "name": _nameController.text,
         "email": _emailController.text,
@@ -128,7 +127,6 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
             ),
           );
           
-          // Kembali ke Dashboard Guru dengan nilai true
           Navigator.pop(context, true); 
           
         } else {
@@ -168,6 +166,74 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
+
+      // ======================================================================
+      // BOTTOM NAVIGATION BAR (SENADA DENGAN DASHBOARD GURU)
+      // ======================================================================
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: 1, // Aktif pada indeks 1 (Siswa)
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.white,
+          selectedItemColor: const Color(0xFF20B2AA), 
+          unselectedItemColor: Colors.grey.shade500,
+          selectedFontSize: 12,
+          unselectedFontSize: 11,
+          onTap: (index) {
+            if (index == 0) {
+              Navigator.pop(context); // Kembali ke Beranda Utama
+            } else if (index == 2) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => TambahModulPage(guruId: widget.guruId)),
+              );
+            } else if (index == 3) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => RekapNilaiPage(guruId: widget.guruId)),
+              );
+            } else if (index == 4) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => UploadEbookPage(guruId: widget.guruId)),
+              );
+            }
+          },
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded),
+              label: 'Beranda',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_add_alt_1),
+              label: 'Siswa',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.post_add),
+              label: 'Modul',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.analytics_outlined),
+              label: 'Nilai',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.upload_file),
+              label: 'E-Book',
+            ),
+          ],
+        ),
+      ),
+      // ======================================================================
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Container(
@@ -194,7 +260,7 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
                 ),
                 const SizedBox(height: 20),
 
-                // 1. DROPDOWN PILIH ORANG TUA (Dinamis dari Database)
+                // 1. DROPDOWN PILIH ORANG TUA
                 const Text("Pilih Orang Tua", style: TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
@@ -291,7 +357,7 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
                   child: ElevatedButton(
                     onPressed: (_isLoading || _isLoadingParents) ? null : _submitData,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[600],
+                      backgroundColor: const Color(0xFF1E88E5), // Biru material primer sesuai gambar rekap
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../api_config.dart';
 import 'tambah_tugas_page.dart';
+import 'detail_rekap_tugas_page.dart';
 
 class RekapTugasPage extends StatefulWidget {
   final int guruId;
@@ -99,16 +100,28 @@ class _RekapTugasPageState extends State<RekapTugasPage> {
                         const SizedBox(height: 8),
                         Row(
                           children: [
+                            // Badge Belum Dinilai
                             _buildStatusBadge(
-                              "${task['pending_count']} Pending",
-                              const Color(
-                                0xFFF59E0B,
-                              ), // Warna Orange (senada button dashboard)
+                              "${task['belum_dinilai'] ?? 0} Belum Dinilai",
+                              (task['belum_dinilai'] ?? 0) > 0
+                                  ? const Color(
+                                      0xFFF59E0B,
+                                    ) // Orange kalau ada tugas masuk
+                                  : Colors
+                                        .grey
+                                        .shade400, // Abu-abu kalau kosong
                             ),
                             const SizedBox(width: 8),
+                            // Badge Sudah Dinilai
                             _buildStatusBadge(
-                              "${task['total_submissions']} Terkumpul",
-                              const Color(0xFF20B2AA), // Warna Teal
+                              "${task['sudah_dinilai'] ?? 0} Sudah Dinilai",
+                              (task['sudah_dinilai'] ?? 0) > 0
+                                  ? const Color(
+                                      0xFF20B2AA,
+                                    ) // Teal kalau sudah dinilai
+                                  : Colors
+                                        .grey
+                                        .shade400, // Abu-abu kalau kosong
                             ),
                           ],
                         ),
@@ -120,7 +133,17 @@ class _RekapTugasPageState extends State<RekapTugasPage> {
                       color: Colors.grey,
                     ),
                     onTap: () {
-                      // Navigasi ke detail (bisa ditambahkan nanti)
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DetailRekapTugasPage(
+                            taskId: task['id'],
+                            taskTitle: task['title'],
+                          ),
+                        ),
+                      ).then(
+                        (_) => _fetchTaskRecap(),
+                      ); // Refresh rekap otomatis saat kembali dari detail
                     },
                   ),
                 );

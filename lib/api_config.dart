@@ -4,5 +4,6 @@ class ApiConfig {
   // Gunakan 'http://localhost:8080/api' jika pakai Web
   
   static const String baseUrl = 'http://localhost:8080/api';
+  static const String baseUrl_siswa = 'http://localhost:8080';
   static const String apiUrl =  'http://localhost:8080/auth';
 }
