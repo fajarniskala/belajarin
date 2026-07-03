@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart'; // <--- TAMBAHKAN BARIS INI
+import 'package:shared_preferences/shared_preferences.dart';
 
-// IMPORT HALAMAN REGISTER (Sesuaikan path ini dengan struktur folder Anda jika berbeda)
+// IMPORT HALAMAN REGISTER
 import 'register_page.dart';
 
 // Import halaman dashboard
 import '/pages/admin/admin_dashboard_screen.dart';
 import 'pages/anak/dashboard_anak.dart';
-import 'pages/ortu/dashboard_ortu.dart'; // <-- Import halaman dashboard ortu
+import 'pages/ortu/dashboard_ortu.dart';
 import 'pages/guru/guru_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -67,37 +67,33 @@ class _LoginScreenState extends State<LoginScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => HomePage(
-                studentId: int.parse(
-                  userData['id'].toString(),
-                ), // Gunakan userData dan pastikan integer
-                studentName: userData['name'].toString(), // Gunakan userData
+                studentId: int.parse(userData['id'].toString()),
+                studentName: userData['name'].toString(),
               ),
             ),
           );
         } else if (role == 'parent') {
-          // 1. Ambil dan parse ID orang tua dari data API terlebih dahulu
+          // --- MENGAMBIL ID DAN NAMA ORANG TUA ---
           final int parentId = int.parse(userData['id'].toString());
+          final String parentName =
+              userData['name']?.toString() ?? 'Wali Murid';
 
-          // 2. Tambahkan cek mounted untuk menghilangkan peringatan garis biru
           if (!mounted) return;
 
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              // 3. HAPUS kata 'const' di depan DashboardOrtuScreen karena membawa data dinamis
-              builder: (context) => DashboardOrtuScreen(parentId: parentId),
+              builder: (context) => DashboardOrtuScreen(
+                parentId: parentId,
+                parentName: parentName, // Kirim variabel nama ke halaman ortu
+              ),
             ),
           );
         } else if (role == 'guru') {
-          // --- MENGAMBIL ID GURU & MENGARAHKAN KE DASHBOARD GURU ---
           final int guruId = int.parse(userData['id'].toString());
 
-          // ====================================================================
-          // PROSES SIMPAN NAMA USER KE MEMORI LOKAL HP
-          // ====================================================================
           final SharedPreferences prefs = await SharedPreferences.getInstance();
           await prefs.setString('name', userData['name']?.toString() ?? 'Guru');
-          // ====================================================================
 
           Navigator.pushReplacement(
             context,
@@ -342,14 +338,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                             const SizedBox(height: 24),
-                            // TAMPILAN LINK PINDAH KE REGISTER
                             Center(
                               child: GestureDetector(
                                 onTap: () {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      // Kirim parameter false agar default Orang Tua
                                       builder: (context) => const RegisterPage(
                                         initialIsAnak: false,
                                       ),
