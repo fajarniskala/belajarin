@@ -1,19 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import '../../api_config.dart'; // Pastikan path file configurasi URL API kamu benar
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../api_config.dart';
+import '../../login_screen.dart';
+import 'halaman_riwayat.dart';
 
 class DashboardOrtuScreen extends StatefulWidget {
-  final int parentId; // Menerima ID Orang tua yang dikirim saat sukses login
+  final int parentId;
+  final String parentName;
 
-  const DashboardOrtuScreen({Key? key, required this.parentId}) : super(key: key);
+  const DashboardOrtuScreen({
+    Key? key,
+    required this.parentId,
+    required this.parentName,
+  }) : super(key: key);
 
   @override
   State<DashboardOrtuScreen> createState() => _DashboardOrtuScreenState();
 }
 
 class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
-  // Objek penampung data dari database
   Map<String, dynamic> _stats = {
     'buku_selesai': 0,
     'sedang_dibaca': 0,
@@ -30,7 +37,6 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
     _fetchDashboardData();
   }
 
-  // JALUR PENGAMBILAN DATA DARI API BACKEND
   Future<void> _fetchDashboardData() async {
     try {
       final response = await http.get(
@@ -54,13 +60,63 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
     }
   }
 
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Konfirmasi Keluar", style: TextStyle(fontWeight: FontWeight.bold)),
+          content: const Text(
+            "Apakah Anda yakin ingin keluar dari halaman pemantauan?",
+            style: TextStyle(fontSize: 15, color: Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Batal", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+                if (context.mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[400],
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text("Keluar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // FILTER BUKU BERDASARKAN STATUS 'is_finished' (0 = Sedang Dibaca, 1 = Selesai)
+    final inProgressLogs = _readingLogs.where((log) {
+      return log['is_finished'] == 0 || log['is_finished'] == '0';
+    }).toList();
+
+    final finishedLogs = _readingLogs.where((log) {
+      return log['is_finished'] == 1 || log['is_finished'] == '1';
+    }).toList();
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF9F7F3),
       appBar: AppBar(
         title: const Text("Dashboard Orang Tua", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF6C7EE1), // Warna senada ungu/periwinkle utama
+        backgroundColor: const Color(0xFF6C7EE1),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -70,7 +126,12 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
               setState(() => _isLoading = true);
               _fetchDashboardData();
             },
-          )
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Keluar',
+            onPressed: () => _showLogoutConfirmation(context),
+          ),
         ],
       ),
       body: _isLoading
@@ -80,29 +141,30 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ======================= COMPONENT 1: HEADER BANNER GRADIENT =======================
                   _buildHeaderCard(),
                   const SizedBox(height: 24),
 
-                  // ======================= COMPONENT 2: DAFTAR BUKU SEDANG DIBACA =======================
+                  // ================= BAGIAN SEDANG DIBACA =================
                   Row(
                     children: [
-                      const Icon(Icons.menu_book_rounded, color: Colors.blue, size: 22),
+                      const Icon(Icons.menu_book_rounded, color: Color(0xFF4A5568), size: 22),
                       const SizedBox(width: 8),
                       Text(
                         "Sedang Dibaca $_childName",
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3748)),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
 
-                  // Kondisional pengecekan jika anak tidak/belum membaca buku apapun
-                  _readingLogs.isEmpty
+                  inProgressLogs.isEmpty
                       ? Container(
                           width: double.infinity,
                           padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                          decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.grey.shade200)),
                           child: Center(
                             child: Text(
                               "$_childName belum membaca buku baru saat ini.",
@@ -111,22 +173,86 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
                           ),
                         )
                       : Column(
-                          // Looping widget card mengikuti isi list database logs
-                          children: _readingLogs.map((log) => _buildReadingCard(log)).toList(),
+                          children: inProgressLogs.map((log) => _buildReadingCard(log, false)).toList(),
                         ),
+
+                  const SizedBox(height: 24),
+
+                  // ================= BAGIAN SUDAH SELESAI =================
+                  Row(
+                    children: [
+                      const Icon(Icons.check_box, color: Colors.green, size: 22),
+                      const SizedBox(width: 8),
+                      const Text(
+                        "Sudah Selesai",
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3748)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  finishedLogs.isEmpty
+                      ? Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.grey.shade200)),
+                          child: Center(
+                            child: Text(
+                              "Belum ada bacaan yang sudah dibaca.",
+                              style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                            ),
+                          ),
+                        )
+                      : Column(
+                          children: finishedLogs.map((log) => _buildReadingCard(log, true)).toList(),
+                        ),
+
+                  const SizedBox(height: 24),
+
+                  // ================= TOMBOL LIHAT RIWAYAT =================
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => HalamanRiwayat(parentId: widget.parentId),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.bar_chart, color: Colors.white),
+                      label: const Text(
+                        "Lihat Riwayat",
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFC471ED),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
     );
   }
 
-  // WIDGET GENERATOR UNTUK BANNER GRADIENT ATAS
   Widget _buildHeaderCard() {
+    int totalBuku = (int.tryParse(_stats['buku_selesai']?.toString() ?? '0') ?? 0) + 
+                    (int.tryParse(_stats['sedang_dibaca']?.toString() ?? '0') ?? 0);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF7A8CE8), Color(0xFF5A6BC8)], // Kombinasi ungu-periwinkle mewah
+          colors: [Color(0xFFB15EFF), Color(0xFF5A8BFF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -142,14 +268,14 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Halo, Wali Murid! 👋", // Bisa diganti session nama ortu jika disimpan
-                      style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                    Text(
+                      "Halo, ${widget.parentName}! 👋",
+                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       "Pantau aktivitas belajar $_childName",
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -157,26 +283,27 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
               CircleAvatar(
                 backgroundColor: Colors.white.withOpacity(0.25),
                 radius: 24,
-                child: const Text("W", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                child: Text(
+                  widget.parentName.isNotEmpty ? widget.parentName[0].toUpperCase() : "W",
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                ),
               )
             ],
           ),
           const SizedBox(height: 20),
-          
-          // GRID STATISTIK 2 KOLOM x 2 BARIS
           Row(
             children: [
-              Expanded(child: _buildGridItem("${_stats['buku_selesai']}", "Buku Selesai", Icons.assignment_turned_in)),
+              Expanded(child: _buildGridItem("$totalBuku", "Total Buku", Icons.library_books)),
               const SizedBox(width: 12),
-              Expanded(child: _buildGridItem("${_stats['sedang_dibaca']}", "Sedang Dibaca", Icons.chrome_reader_mode)),
+              Expanded(child: _buildGridItem("${_stats['buku_selesai']}", "Selesai Dibaca", Icons.check_box)),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildGridItem("${_stats['total_durasi']}", "Total Durasi", Icons.access_time_filled)),
+              Expanded(child: _buildGridItem("${_stats['total_durasi']}", "Waktu Baca", Icons.access_time_filled)),
               const SizedBox(width: 12),
-              Expanded(child: _buildGridItem("${_stats['poin_anak']}", "Poin Anak", Icons.stars)),
+              Expanded(child: _buildGridItem("${_stats['poin_anak']}", "Total Poin", Icons.star)),
             ],
           )
         ],
@@ -184,24 +311,29 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
     );
   }
 
-  // ITEM CARD KECIL DI DALAM GRID UTAMA
   Widget _buildGridItem(String value, String label, IconData icon) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: Colors.white70, size: 14),
-              const SizedBox(width: 6),
-              Text(label, style: const TextStyle(color: Colors.white, fontSize: 11)),
+              Icon(icon, color: Colors.white, size: 14),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           )
         ],
@@ -209,15 +341,17 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
     );
   }
 
-  // WIDGET GENERATOR UNTUK KARTU BUKU "SEDANG DIBACA" (ANTI-OVERFLOW)
-  Widget _buildReadingCard(Map<String, dynamic> log) {
-    // 1. Ambil data mentah numerik dari map
-    int lastPage = log['last_page'] ?? 0;
-    int totalPages = log['total_pages'] ?? 1; // Cegah pembagian angka dengan nol (division by zero)
+  Widget _buildReadingCard(Map<String, dynamic> log, bool isFinished) {
+    // [PERBAIKAN] Mengubah String menjadi Integer dengan aman tanpa crash
+    int lastPage = int.tryParse(log['last_page']?.toString() ?? '0') ?? 0;
+    int totalPages = int.tryParse(log['total_pages']?.toString() ?? '1') ?? 1;
 
-    // 2. Kalkulasi persentase matematika untuk progress bar
     double progressPercent = lastPage / totalPages;
-    int displayPercent = (progressPercent * 100).clamp(0, 100).toInt(); // Amankan di range 0-100%
+    int displayPercent = (progressPercent * 100).clamp(0, 100).toInt();
+
+    Color iconBgColor = isFinished ? const Color(0xFF3B82F6) : const Color(0xFFFFC107);
+    IconData iconData = isFinished ? Icons.set_meal : Icons.cruelty_free;
+    Color progressColor = isFinished ? Colors.green : const Color(0xFF3B82F6);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -225,28 +359,19 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 3))
-        ],
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              // Wadah Ikon Buku Berwarna Kuning Singa Estetik
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFC107), // Warna oranye/kuning ikon singa
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.emoji_nature_rounded, color: Colors.white, size: 24),
+                decoration: BoxDecoration(color: iconBgColor, borderRadius: BorderRadius.circular(14)),
+                child: Icon(iconData, color: Colors.white, size: 28),
               ),
               const SizedBox(width: 14),
-              
-              // Informasi Utama Judul Buku
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,7 +384,7 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Terakhir baca: ${log['last_read_at'] ?? '-'}",
+                      isFinished ? "Selesai: ${log['last_read_at'] ?? '-'}" : "Terakhir baca: ${log['last_read_at'] ?? '-'}",
                       style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                     ),
                   ],
@@ -268,24 +393,31 @@ class _DashboardOrtuScreenState extends State<DashboardOrtuScreen> {
             ],
           ),
           const SizedBox(height: 14),
-
-          // PROGRESS BAR PROGRES MEMBACA ANAK
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
-              value: progressPercent.clamp(0.0, 1.0), // Amankan bar pengisi agar tidak overflow melebihi lebar kontainer
-              backgroundColor: Colors.grey[100],
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue), // Warna bar biru sesuai gambar
-              minHeight: 7,
+              value: progressPercent.clamp(0.0, 1.0),
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+              minHeight: 8,
             ),
           ),
           const SizedBox(height: 10),
-
-          // DETAIL INDIKATOR TEXT BARIS BAWAH
-          Text(
-            "Hal. $lastPage dari $totalPages • $displayPercent% • ${log['reading_duration']} menit baca",
-            style: const TextStyle(fontSize: 12, color: Colors.blue, fontWeight: FontWeight.bold),
-          ),
+          isFinished
+              ? Row(
+                  children: [
+                    const Icon(Icons.check_box, color: Colors.green, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      "Selesai • ${log['reading_duration'] ?? 0} menit baca",
+                      style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                )
+              : Text(
+                  "Hal. $lastPage dari $totalPages • $displayPercent% • ${log['reading_duration'] ?? 0} menit baca",
+                  style: TextStyle(fontSize: 12, color: progressColor, fontWeight: FontWeight.bold),
+                ),
         ],
       ),
     );
