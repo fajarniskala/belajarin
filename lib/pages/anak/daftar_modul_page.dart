@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../api_config.dart';
+import 'pdf_viewer_page_modul.dart'; // <--- TAMBAHKAN IMPORT INI
 
 class DaftarModulPage extends StatefulWidget {
   final int studentId;
@@ -285,13 +286,37 @@ class _DaftarModulPageState extends State<DaftarModulPage> {
                               ),
                               const SizedBox(width: 8),
 
-                              // Tombol Pelajari Aksi Buku
+                              // =======================================================
+                              // ✅ TOMBOL BUKA MODUL (Diubah untuk membuka PdfViewerPage)
+                              // =======================================================
                               ElevatedButton(
                                 onPressed: () {
-                                  // Logika berikutnya untuk membaca isi berkas PDF modul materi
-                                  print(
-                                    "Membuka file modul: ${modul['file_pdf']}",
-                                  );
+                                  final String? filePdf = modul['file_pdf'];
+
+                                  if (filePdf != null &&
+                                      filePdf.trim().isNotEmpty) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => PdfViewerPage(
+                                          // Pastikan endpoint ini sesuai dengan cara backendmu nge-serve file modul
+                                          url:
+                                              '${ApiConfig.baseUrl}/siswa/stream-modul/$filePdf',
+                                          title:
+                                              modul['title'] ?? "Modul Materi",
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'File modul belum tersedia/diunggah.',
+                                        ),
+                                        backgroundColor: Colors.orange,
+                                      ),
+                                    );
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: themeColor,
