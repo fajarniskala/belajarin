@@ -4,8 +4,13 @@ import 'dart:convert';
 import '../../login_screen.dart';
 import 'tambah_siswa_page.dart';
 import 'tambah_modul_page.dart';
-import 'rekap_tugas_page.dart'; // ✅ Menambahkan import halaman tugas
+import 'rekap_tugas_page.dart';
 import '../../api_config.dart';
+import 'kelola_modul_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'daftar_siswa_page.dart';
+import 'rekap_nilai_page.dart';
+import 'upload_ebook_page.dart';
 
 class GuruDashboardScreen extends StatefulWidget {
   final int guruId;
@@ -26,6 +31,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
   String recentActivityDesc = '';
   String recentActivityTime = '';
   bool hasRecentActivity = false;
+  String _guruName = 'Guru';
 
   bool isLoading = true;
 
@@ -33,6 +39,14 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
   void initState() {
     super.initState();
     _fetchGuruStats();
+    _loadGuruName();
+  }
+
+  Future<void> _loadGuruName() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _guruName = prefs.getString('name') ?? 'Guru';
+    });
   }
 
   Future<void> _fetchGuruStats() async {
@@ -101,7 +115,6 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
     }
   }
 
-  // ✅ Dialog Konfirmasi Logout
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -125,7 +138,6 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
             style: TextStyle(fontSize: 14, color: Colors.black54),
           ),
           actions: [
-            // Tombol Batal
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
               child: const Text(
@@ -136,7 +148,6 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
                 ),
               ),
             ),
-            // Tombol Ya, Logout
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF20B2AA),
@@ -145,8 +156,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
                 ),
               ),
               onPressed: () {
-                Navigator.of(context).pop(); // tutup dialog dulu
-                // ✅ Pakai MaterialPageRoute karena main.dart tidak pakai named routes
+                Navigator.of(context).pop(); 
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -191,7 +201,6 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
               _fetchGuruStats();
             },
           ),
-          // ✅ Tombol logout panggil dialog konfirmasi
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: 'Logout',
@@ -200,6 +209,71 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           const SizedBox(width: 8),
         ],
       ),
+      
+      // ======================================================================
+      // BOTTOM NAVIGATION BAR (PENGGANTI TOMBOL GRID BAWAH)
+      // ======================================================================
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: 0, // Indeks 0 (Home) akan selalu nyala
+          type: BottomNavigationBarType.fixed, // Agar semua label menu muncul
+          backgroundColor: Colors.white,
+          selectedItemColor: const Color(0xFF20B2AA), // Warna teal aktif
+          unselectedItemColor: Colors.grey.shade500,
+          selectedFontSize: 12,
+          unselectedFontSize: 11,
+          onTap: (index) async {
+            // Logika Routing (Navigasi) berdasarkan indeks tab yang diklik
+            if (index == 1) {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => TambahSiswaPage(guruId: widget.guruId)));
+            } else if (index == 2) {
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => TambahModulPage(guruId: widget.guruId)));
+              // Jika baru saja menambah modul dan kembali, segarkan statistik
+              if (result == true) {
+                setState(() => isLoading = true);
+                _fetchGuruStats();
+              }
+            } else if (index == 3) {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => RekapNilaiPage(guruId: widget.guruId)));
+            } else if (index == 4) {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => UploadEbookPage(guruId: widget.guruId)));
+            }
+          },
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded),
+              label: 'Beranda',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_add_alt_1),
+              label: 'Siswa',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.post_add),
+              label: 'Modul',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.analytics_outlined),
+              label: 'Nilai',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.upload_file),
+              label: 'E-Book',
+            ),
+          ],
+        ),
+      ),
+      // ======================================================================
+
       body: isLoading
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF20B2AA)),
@@ -222,8 +296,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
                     ),
                     const SizedBox(height: 12),
                     _buildRecentActivityCards(),
-                    const SizedBox(height: 24),
-                    _buildBottomActionButtons(),
+                    const SizedBox(height: 10), // Jarak napas dengan Navbar Bawah
                   ],
                 ),
               ),
@@ -257,17 +330,17 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
-                    'Halo, Guru! 📚',
-                    style: TextStyle(
+                    "Halo, $_guruName!",
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 4),
-                  Text(
+                  const SizedBox(height: 4),
+                  const Text(
                     'Pantau perkembangan siswa Anda',
                     style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
@@ -385,6 +458,14 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           title: 'Daftar Siswa',
           subtitle: 'Data Siswa',
           infoBadge: '$myStudentCount Anak',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DaftarSiswaPage(guruId: widget.guruId),
+              ),
+            );
+          },
         ),
         const SizedBox(height: 12),
         _buildListCard(
@@ -393,6 +474,16 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           title: 'Modul & Materi',
           subtitle: 'Kelola modul pembelajaran Anda',
           infoBadge: '$myModuleCount Modul',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => KelolaModulPage(guruId: widget.guruId),
+              ),
+            ).then(
+              (_) => _fetchGuruStats(),
+            ); 
+          },
         ),
         const SizedBox(height: 12),
         _buildListCard(
@@ -407,14 +498,13 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
               MaterialPageRoute(
                 builder: (context) => RekapTugasPage(guruId: widget.guruId),
               ),
-            ).then((_) => _fetchGuruStats()); // Refresh dashboard saat kembali
+            ).then((_) => _fetchGuruStats()); 
           },
         ),
       ],
     );
   }
 
-  // ✅ Menambahkan parameter onTap agar aksi klik bersifat dinamis
   Widget _buildListCard({
     required IconData icon,
     required Color iconColor,
@@ -464,7 +554,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
             const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
           ],
         ),
-        onTap: onTap ?? () {}, // ✅ Mengeksekusi onTap yang dilempar dari atas
+        onTap: onTap ?? () {}, 
       ),
     );
   }
@@ -543,121 +633,6 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),
             ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBottomActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: InkWell(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => TambahSiswaPage(guruId: widget.guruId),
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF4A90E2),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: const [
-                  Icon(Icons.person_add, color: Colors.white),
-                  SizedBox(height: 8),
-                  Text(
-                    'Tambah Siswa',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: InkWell(
-            onTap: () async {
-              // Navigasi ke form tambah modul dan tunggu hasilnya
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => TambahModulPage(guruId: widget.guruId),
-                ),
-              );
-
-              // Refresh statistik di dashboard jika modul berhasil ditambah
-              if (result == true) {
-                setState(() => isLoading = true);
-                _fetchGuruStats();
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF20B2AA),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: const [
-                  Icon(Icons.post_add, color: Colors.white),
-                  SizedBox(height: 8),
-                  Text(
-                    'Tambah Modul',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: InkWell(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Buka halaman rekap nilai...')),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: const [
-                  Icon(Icons.analytics_outlined, color: Colors.white),
-                  SizedBox(height: 8),
-                  Text(
-                    'Rekap Nilai',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
       ],
