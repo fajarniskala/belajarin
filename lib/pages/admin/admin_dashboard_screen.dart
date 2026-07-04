@@ -38,37 +38,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void initState() {
     super.initState();
     _fetchUserStats();
-    _fetchDashboardStats();
+    //_fetchDashboardStats();
   }
 
-  Future<void> _fetchDashboardStats() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/dashboard/getUserStats'),
-      );
+  // Future<void> _fetchDashboardStats() async {
+  //   try {
+  //     final response = await http.get(
+  //       Uri.parse('${ApiConfig.baseUrl}/dashboard/getUserStats'),
+  //     );
 
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        final data = responseData['data'];
+  //     if (response.statusCode == 200) {
+  //       final responseData = jsonDecode(response.body);
+  //       final data = responseData['data'];
 
-        if (mounted) {
-          setState(() {
-            guruCount = int.tryParse(data['guru'].toString()) ?? 0;
-            parentCount = int.tryParse(data['parent'].toString()) ?? 0;
-            childCount = int.tryParse(data['child'].toString()) ?? 0;
-            totalUser = int.tryParse(data['total'].toString()) ?? 0;
-            totalEbooks = int.tryParse(data['total_ebooks'].toString()) ?? 0;
-            _isLoadingStats = false;
-          });
-        }
-      } else {
-        if (mounted) setState(() => _isLoadingStats = false);
-      }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingStats = false);
-      debugPrint("Error mengambil statistik admin: $e");
-    }
-  }
+  //       if (mounted) {
+  //         setState(() {
+  //           guruCount = int.tryParse(data['guru'].toString()) ?? 0;
+  //           parentCount = int.tryParse(data['parent'].toString()) ?? 0;
+  //           childCount = int.tryParse(data['child'].toString()) ?? 0;
+  //           totalUser = int.tryParse(data['total'].toString()) ?? 0;
+  //           totalEbooks = int.tryParse(data['total_ebooks'].toString()) ?? 0;
+  //           _isLoadingStats = false;
+  //         });
+  //       }
+  //     } else {
+  //       if (mounted) setState(() => _isLoadingStats = false);
+  //     }
+  //   } catch (e) {
+  //     if (mounted) setState(() => _isLoadingStats = false);
+  //     debugPrint("Error mengambil statistik admin: $e");
+  //   }
+  // }
 
   // Fungsi untuk mengambil data dari API CI4
   Future<void> _fetchUserStats() async {
