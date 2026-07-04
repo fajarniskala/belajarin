@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'kerjakan_tugas_page.dart';
 import 'pdf_viewer_page.dart';
 import 'daftar_modul_page.dart';
+import 'profil_anak_page.dart';
 import 'perpustakaan_page.dart';
 import '../../login_screen.dart';
 import 'dart:convert';
@@ -425,34 +426,52 @@ class _HomePageState extends State<HomePage> {
                         // GABUNGAN AVATAR & LOGO LOGOUT JELAS DI SEBELAH KANAN
                         Row(
                           children: [
-                            Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: Colors.yellow[600],
-                                borderRadius: const BorderRadius.all(
-                                  Radius.circular(80),
-                                ),
-                                border: Border.all(
-                                  color: Colors.white,
-                                  style: BorderStyle.solid,
-                                  width: 4,
-                                  strokeAlign: BorderSide.strokeAlignOutside,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  initial,
-                                  style: const TextStyle(
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ProfilAnakPage(
+                                      studentId: widget.studentId,
+                                      studentName: widget.studentName,
+                                      totalPoin: _totalPoin,
+                                      totalBadge: _totalBadge,
+                                    ),
+                                  ),
+                                ).then((_) {
+                                  // Ketika kembali dari halaman profil, otomatis menyegarkan data statistik poin di beranda
+                                  _fetchGamificationStats();
+                                });
+                              },
+                              child: Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: Colors.yellow[600],
+                                  borderRadius: const BorderRadius.all(
+                                    Radius.circular(80),
+                                  ),
+                                  border: Border.all(
                                     color: Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 32,
+                                    style: BorderStyle.solid,
+                                    width: 4,
+                                    strokeAlign: BorderSide.strokeAlignOutside,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    initial,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 32,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                             const SizedBox(width: 8),
-                            // Tombol Logout dengan icon yang jelas dan intuitif untuk anak
+                            // Tombol Logout tetap dibiarkan sama di sebelah kanan avatar
                             IconButton(
                               icon: const Icon(
                                 Icons.logout_rounded,
@@ -468,9 +487,6 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 24),
 
-                    // ========================================================
-                    // ✅ AREA INI DIUBAH AGAR BISA DI-KLIK KE HALAMAN ACHIEVEMENT
-                    // ========================================================
                     GestureDetector(
                       onTap: () {
                         // Membuka halaman koleksi badge
@@ -1062,7 +1078,7 @@ class _HomePageState extends State<HomePage> {
                             crossAxisCount: 2,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
-                            mainAxisExtent: 140,
+                            mainAxisExtent: 155,
                           ),
                       itemBuilder: (context, index) {
                         final kat = _listKategori[index];

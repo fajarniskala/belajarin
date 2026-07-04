@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'daftar_siswa_page.dart';
 import 'rekap_nilai_page.dart';
 import 'upload_ebook_page.dart';
+import 'profil_guru_page.dart';
 
 class GuruDashboardScreen extends StatefulWidget {
   final int guruId;
@@ -156,7 +157,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
                 ),
               ),
               onPressed: () {
-                Navigator.of(context).pop(); 
+                Navigator.of(context).pop();
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -209,7 +210,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      
+
       // ======================================================================
       // BOTTOM NAVIGATION BAR (PENGGANTI TOMBOL GRID BAWAH)
       // ======================================================================
@@ -234,18 +235,38 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           onTap: (index) async {
             // Logika Routing (Navigasi) berdasarkan indeks tab yang diklik
             if (index == 1) {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => TambahSiswaPage(guruId: widget.guruId)));
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TambahSiswaPage(guruId: widget.guruId),
+                ),
+              );
             } else if (index == 2) {
-              final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => TambahModulPage(guruId: widget.guruId)));
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TambahModulPage(guruId: widget.guruId),
+                ),
+              );
               // Jika baru saja menambah modul dan kembali, segarkan statistik
               if (result == true) {
                 setState(() => isLoading = true);
                 _fetchGuruStats();
               }
             } else if (index == 3) {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => RekapNilaiPage(guruId: widget.guruId)));
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => RekapNilaiPage(guruId: widget.guruId),
+                ),
+              );
             } else if (index == 4) {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => UploadEbookPage(guruId: widget.guruId)));
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => UploadEbookPage(guruId: widget.guruId),
+                ),
+              );
             }
           },
           items: const [
@@ -257,10 +278,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
               icon: Icon(Icons.person_add_alt_1),
               label: 'Siswa',
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.post_add),
-              label: 'Modul',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.post_add), label: 'Modul'),
             BottomNavigationBarItem(
               icon: Icon(Icons.analytics_outlined),
               label: 'Nilai',
@@ -272,8 +290,8 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           ],
         ),
       ),
-      // ======================================================================
 
+      // ======================================================================
       body: isLoading
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF20B2AA)),
@@ -296,7 +314,9 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
                     ),
                     const SizedBox(height: 12),
                     _buildRecentActivityCards(),
-                    const SizedBox(height: 10), // Jarak napas dengan Navbar Bawah
+                    const SizedBox(
+                      height: 10,
+                    ), // Jarak napas dengan Navbar Bawah
                   ],
                 ),
               ),
@@ -328,28 +348,49 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Halo, $_guruName!",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Halo, $_guruName!",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Pantau perkembangan siswa Anda',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Pantau perkembangan siswa Anda',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
+                ),
               ),
-              CircleAvatar(
-                backgroundColor: Colors.white.withOpacity(0.3),
-                radius: 24,
-                child: const Icon(Icons.school, color: Colors.white, size: 28),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ProfilGuruPage(
+                        guruId: widget.guruId,
+                        guruName: _guruName,
+                        myStudents: myStudentCount,   
+                        myModules: myModuleCount,     
+                        totalPoints: totalPointsGiven, 
+                      ),
+                    ),
+                  ).then((_) {
+                    // Ketika guru kembali dari halaman profil, otomatis refresh data statistik di beranda
+                    _fetchGuruStats();
+                  });
+                },
+                child: CircleAvatar(
+                  backgroundColor: Colors.white.withOpacity(0.25),
+                  radius: 24,
+                  child: const Icon(Icons.school, color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -480,9 +521,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
               MaterialPageRoute(
                 builder: (context) => KelolaModulPage(guruId: widget.guruId),
               ),
-            ).then(
-              (_) => _fetchGuruStats(),
-            ); 
+            ).then((_) => _fetchGuruStats());
           },
         ),
         const SizedBox(height: 12),
@@ -498,7 +537,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
               MaterialPageRoute(
                 builder: (context) => RekapTugasPage(guruId: widget.guruId),
               ),
-            ).then((_) => _fetchGuruStats()); 
+            ).then((_) => _fetchGuruStats());
           },
         ),
       ],
@@ -554,7 +593,7 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
             const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
           ],
         ),
-        onTap: onTap ?? () {}, 
+        onTap: onTap ?? () {},
       ),
     );
   }

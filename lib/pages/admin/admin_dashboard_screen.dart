@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart'; // 🌟 TAMBAHAN UNTUK CLEAR PREFERENCES
 import 'register_screen.dart';
-import '../../api_config.dart'; // Import halaman register yang sudah dibuat
+import '../../api_config.dart';
+import '../../login_screen.dart'; // 🌟 TAMBAHAN UNTUK REDIRECT KE LOGIN SCREEN
+import 'data_guru_page.dart';
+import 'data_orang_tua_page.dart';
+import 'data_anak_page.dart';
+import 'laporan_sistem_page.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -17,7 +23,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int parentCount = 0;
   int childCount = 0;
   int totalUser = 0;
-  int totalEbooks = 0; 
+  int totalEbooks = 0;
+  bool _isLoadingStats = true;
 
   // Variabel untuk log aktivitas terbaru
   String recentEbookTitle = '';
@@ -31,12 +38,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   void initState() {
     super.initState();
     _fetchUserStats();
+    _fetchDashboardStats();
+  }
+
+  Future<void> _fetchDashboardStats() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/dashboard/getUserStats'),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        final data = responseData['data'];
+
+        if (mounted) {
+          setState(() {
+            guruCount = int.tryParse(data['guru'].toString()) ?? 0;
+            parentCount = int.tryParse(data['parent'].toString()) ?? 0;
+            childCount = int.tryParse(data['child'].toString()) ?? 0;
+            totalUser = int.tryParse(data['total'].toString()) ?? 0;
+            totalEbooks = int.tryParse(data['total_ebooks'].toString()) ?? 0;
+            _isLoadingStats = false;
+          });
+        }
+      } else {
+        if (mounted) setState(() => _isLoadingStats = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingStats = false);
+      debugPrint("Error mengambil statistik admin: $e");
+    }
   }
 
   // Fungsi untuk mengambil data dari API CI4
   Future<void> _fetchUserStats() async {
-    // Sesuaikan dengan URL yang berfungsi di environment Anda
-    // Gunakan http://10.0.2.2:8080 jika menggunakan Android Emulator
     const String apiUrl = '${ApiConfig.baseUrl}/dashboard/user-stats';
 
     try {
@@ -53,21 +88,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           totalUser = stats['total'];
           totalEbooks = stats['total_ebooks'];
 
-          // --- Cek apakah ada data ebook terbaru ---
           if (stats['recent_ebook'] != null && stats['recent_ebook'] is Map) {
             final recent = stats['recent_ebook'];
             recentEbookTitle = recent['title'] ?? 'Tanpa Judul';
-            
-            // Format Role ke Bahasa Indonesia
+
             String rawRole = recent['uploader_role'] ?? '';
-            String roleLabel = rawRole == 'parent' ? 'Orang Tua' : (rawRole == 'guru' ? 'Guru' : rawRole);
-            
+            String roleLabel = rawRole == 'parent'
+                ? 'Orang Tua'
+                : (rawRole == 'guru' ? 'Guru' : rawRole);
+
             String uploaderName = recent['uploader_name'] ?? 'Anonim';
-            
-            // Output misal: "Buku Uji Coba" oleh Bapak Andi (Orang Tua)
-            recentEbookDesc = '"$recentEbookTitle" oleh $uploaderName ($roleLabel)';
-            recentEbookTime = recent['uploaded_at'] ?? ''; 
-            
+
+            recentEbookDesc =
+                '"$recentEbookTitle" oleh $uploaderName ($roleLabel)';
+            recentEbookTime = recent['uploaded_at'] ?? '';
+
             hasRecentEbook = true;
           } else {
             hasRecentEbook = false;
@@ -93,16 +128,98 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: const Text(
+            "Mau Keluar?",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          content: const Text(
+            "Apakah kamu yakin ingin selesai memantau dan keluar dari akun Admin?",
+            style: TextStyle(fontSize: 15, color: Colors.black54, height: 1.4),
+          ),
+          actionsPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                "Batal",
+                style: TextStyle(
+                  color: Colors.blue[700],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // Bersihkan data sesi SharedPreferences admin
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+
+                // Tendang balik aman ke Halaman Login Utama
+                if (context.mounted) {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
+                    (route) => false,
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red[400],
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                "Ya, Keluar",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFDFDFD), // Warna background terang
+      backgroundColor: const Color(0xFFFDFDFD),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF4A90E2), // Biru atas
+        backgroundColor: const Color(0xFF4A90E2),
         elevation: 0,
         title: const Text(
           'Dashboard Admin',
-          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         actions: [
           IconButton(
@@ -110,23 +227,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             tooltip: 'Refresh Data',
             onPressed: () {
               setState(() => isLoading = true);
-              _fetchUserStats(); // Panggil ulang API saat tombol refresh ditekan
+              _fetchUserStats();
             },
           ),
+          // 🌟 DIUBAH: Sekarang mengarah langsung ke fungsi konfirmasi dialog logout
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.white),
             tooltip: 'Logout',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Proses Logout...')),
-              );
-            },
+            onPressed: () => _showLogoutConfirmation(context),
           ),
-          const SizedBox(width: 8), 
+          const SizedBox(width: 8),
         ],
       ),
-      body: isLoading 
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF4A90E2))) 
+      body: isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF4A90E2)),
+            )
           : SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -135,11 +251,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   children: [
                     _buildHeaderGradient(),
                     const SizedBox(height: 24),
-                    _buildSectionTitle(Icons.people_alt_outlined, 'Manajemen Pengguna'),
+                    _buildSectionTitle(
+                      Icons.people_alt_outlined,
+                      'Manajemen Pengguna',
+                    ),
                     const SizedBox(height: 12),
                     _buildUserManagementCards(),
                     const SizedBox(height: 24),
-                    _buildSectionTitle(Icons.notifications_active_outlined, 'Aktivitas & Log Sistem'),
+                    _buildSectionTitle(
+                      Icons.notifications_active_outlined,
+                      'Aktivitas & Log Sistem',
+                    ),
                     const SizedBox(height: 12),
                     _buildRecentActivityCards(),
                     const SizedBox(height: 24),
@@ -157,7 +279,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFB485FF), Color(0xFF5B86E5)], 
+          colors: [Color(0xFFB485FF), Color(0xFF5B86E5)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -180,7 +302,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
                   Text(
-                    'Halo, Admin! 👑',
+                    'Halo, Admin!',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 24,
@@ -190,10 +312,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   SizedBox(height: 4),
                   Text(
                     'Pantau aktivitas sistem BelajarIn',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
@@ -202,27 +321,41 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 radius: 24,
                 child: const Text(
                   'A',
-                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
-          // Grid Statistik Baris 1
           Row(
             children: [
-              Expanded(child: _buildStatCard('$totalUser', 'Total User', Icons.group)),
+              Expanded(
+                child: _buildStatCard('$totalUser', 'Total User', Icons.group),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildStatCard('$guruCount', 'Guru Aktif', Icons.school)),
+              Expanded(
+                child: _buildStatCard('$guruCount', 'Guru Aktif', Icons.school),
+              ),
             ],
           ),
           const SizedBox(height: 12),
-          // Grid Statistik Baris 2
           Row(
             children: [
-              Expanded(child: _buildStatCard('$totalEbooks', 'Total E-Book', Icons.menu_book)), 
+              Expanded(
+                child: _buildStatCard(
+                  '$totalEbooks',
+                  'Total E-Book',
+                  Icons.menu_book,
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _buildStatCard('30', 'Modul Belajar', Icons.assignment)), 
+              Expanded(
+                child: _buildStatCard('30', 'Modul Belajar', Icons.assignment),
+              ),
             ],
           ),
         ],
@@ -230,7 +363,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  // Komponen Kartu Statistik di dalam Header
+  Widget _buildShapeCard(String value, String label, IconData icon) {
+    return Container();
+  }
+
   Widget _buildStatCard(String value, String label, IconData icon) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -256,10 +392,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(width: 4),
               Text(
                 label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 12),
               ),
             ],
           ),
@@ -286,7 +419,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  // 3. MANAJEMEN PENGGUNA 
+  // 3. MANAJEMEN PENGGUNA
   Widget _buildUserManagementCards() {
     return Column(
       children: [
@@ -295,7 +428,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           iconColor: Colors.orange,
           title: 'Data Guru',
           subtitle: 'Kelola akses pembuat modul',
-          total: '$guruCount Akun', 
+          total: '$guruCount Akun',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const DataGuruPage()),
+            );
+          },
         ),
         const SizedBox(height: 12),
         _buildUserTypeCard(
@@ -303,7 +442,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           iconColor: Colors.green,
           title: 'Data Orang Tua',
           subtitle: 'Kelola akses pemantau & uploader PDF',
-          total: '$parentCount Akun', 
+          total: '$parentCount Akun',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const DataOrangTuaPage()),
+            );
+          },
         ),
         const SizedBox(height: 12),
         _buildUserTypeCard(
@@ -311,19 +456,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           iconColor: Colors.blue,
           title: 'Data Anak (Siswa)',
           subtitle: 'Pantau poin & riwayat bacaan',
-          total: '$childCount Akun', 
+          total: '$childCount Akun',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const DataAnakPage()),
+            );
+          },
         ),
       ],
     );
   }
 
-  // Komponen List Tile untuk User
   Widget _buildUserTypeCard({
     required IconData icon,
     required Color iconColor,
     required String title,
     required String subtitle,
     required String total,
+    VoidCallback? onTap,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -355,13 +506,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(total, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
+            Text(
+              total,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black54,
+              ),
+            ),
             const Icon(Icons.chevron_right, size: 16, color: Colors.grey),
           ],
         ),
-        onTap: () {
-          // TODO: Navigasi ke List Detail Pengguna
-        },
+        onTap: onTap,
       ),
     );
   }
@@ -377,7 +532,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       child: Column(
         children: [
-          // Menampilkan Log E-Book secara dinamis jika datanya ada
           if (hasRecentEbook)
             _buildActivityItem(
               title: 'E-Book Baru Diunggah',
@@ -391,15 +545,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               padding: EdgeInsets.symmetric(vertical: 8),
               child: Center(
                 child: Text(
-                  'Belum ada e-book yang diunggah', 
+                  'Belum ada e-book yang diunggah',
                   style: TextStyle(color: Colors.grey, fontSize: 13),
                 ),
               ),
             ),
-
           const Divider(height: 24),
-          
-          // Modul Baru (Statis untuk sementara)
           _buildActivityItem(
             title: 'Modul Baru Dibuat',
             desc: '"Matematika Dasar" oleh Pak Budi (Guru)',
@@ -435,11 +586,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
               const SizedBox(height: 4),
-              Text(desc, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+              Text(
+                desc,
+                style: const TextStyle(fontSize: 12, color: Colors.black87),
+              ),
               const SizedBox(height: 4),
-              Text(time, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(
+                time,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
             ],
           ),
         ),
@@ -454,25 +617,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         Expanded(
           child: InkWell(
             onTap: () {
-              // Navigasi push ke halaman RegisterScreen
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const RegisterScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => const RegisterScreen()),
               );
             },
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFF4A90E2), 
+                color: const Color(0xFF4A90E2),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
                 children: const [
                   Icon(Icons.person_add_alt_1, color: Colors.white),
                   SizedBox(height: 8),
-                  Text('Tambah User', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Tambah User',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -482,19 +648,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         Expanded(
           child: InkWell(
             onTap: () {
-              // TODO: Aksi Lihat Laporan
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LaporanSistemPage(),
+                ),
+              );
             },
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFC084FC), 
+                color: const Color(0xFFC084FC),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
                 children: const [
                   Icon(Icons.bar_chart, color: Colors.white),
                   SizedBox(height: 8),
-                  Text('Laporan Sistem', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Laporan Sistem',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
