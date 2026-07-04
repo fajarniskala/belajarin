@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 // IMPORT HALAMAN REGISTER
 import 'register_page.dart';
+import 'api_config.dart';
 
 // Import halaman dashboard
 import '/pages/admin/admin_dashboard_screen.dart';
@@ -41,12 +42,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // Sesuaikan URL API Anda
-      const String apiUrl = 'http://localhost:8080/auth/login';
+      //const String apiUrl = 'http://10.110.149.120/auth/login';
+      final String apiUrl = '${ApiConfig.apiUrl}/login';
 
       final response = await http.post(
         Uri.parse(apiUrl),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {'email': email, 'password': password},
+        headers: {
+          'Content-Type': 'application/json', // Beritahu CI kalau ini JSON
+          'Accept': 'application/json',
+          'Connection': 'close',
+        },
+        body: json.encode({
+          // Convert Map ke String JSON
+          'email': email,
+          'password': password,
+        }),
       );
 
       if (response.statusCode == 200) {
