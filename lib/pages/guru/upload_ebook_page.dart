@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
+import 'dart:typed_data'; // 🔥 TAMBAHAN: Untuk membaca biner file PDF
 import 'package:flutter/foundation.dart'; 
 import '../../api_config.dart';
 
@@ -53,17 +54,51 @@ class _UploadEbookPageState extends State<UploadEbookPage> {
     }
   }
 
+  // 🔥 FUNGSI HACK UTAMA: Membaca metadata /Count biner PDF secara Pure Dart (Bebas Error Gradle)
+  int _extractPdfPageCount(Uint8List bytes) {
+    try {
+      // Menggunakan latin1 agar data biner aman dikonversi menjadi string tanpa memicu crash UTF-8
+      final content = latin1.decode(bytes, allowInvalid: true);
+      
+      // Mencari pola reguler penulisan struktur /Count di dalam dokumen PDF
+      final regExp = RegExp(r'/Count\s+(\d+)');
+      final matches = regExp.allMatches(content);
+      
+      int maxPages = 0;
+      for (var match in matches) {
+        int current = int.tryParse(match.group(1) ?? '0') ?? 0;
+        if (current > maxPages) {
+          maxPages = current; // Mengambil angka kemunculan halaman tertinggi sebagai total halaman utama
+        }
+      }
+      return maxPages;
+    } catch (e) {
+      debugPrint("Gagal mengekstrak halaman PDF: $e");
+      return 0;
+    }
+  }
+
   Future<void> _pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
-      withData: true, 
+      withData: true, // Memastikan data bytes file PDF termuat sempurna[cite: 9]
     );
 
     if (result != null) {
       setState(() {
         _pickedFile = result;
       });
+
+      // 🔥 HITUNG OTOMATIS: Berjalan instan tanpa plugin native luar
+      if (result.files.single.bytes != null) {
+        int totalHalaman = _extractPdfPageCount(result.files.single.bytes!);
+        if (totalHalaman > 0) {
+          setState(() {
+            _totalPagesController.text = totalHalaman.toString();
+          });
+        }
+      }
     }
   }
 
@@ -134,9 +169,6 @@ class _UploadEbookPageState extends State<UploadEbookPage> {
         elevation: 0,
       ),
 
-      // ======================================================================
-      // BOTTOM NAVIGATION BAR (ACTIVE INDEX: 4)
-      // ======================================================================
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
