@@ -5,8 +5,10 @@ import '../../api_config.dart';
 
 class HalamanRiwayat extends StatefulWidget {
   final int parentId;
+  final int? childId; 
 
-  const HalamanRiwayat({Key? key, required this.parentId}) : super(key: key);
+  const HalamanRiwayat({Key? key, required this.parentId, this.childId})
+    : super(key: key);
 
   @override
   State<HalamanRiwayat> createState() => _HalamanRiwayatState();
@@ -27,9 +29,13 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
 
   Future<void> _fetchRiwayat() async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/ortucontroller/riwayat-baca/${widget.parentId}'),
-      );
+      String url =
+          '${ApiConfig.baseUrl}/ortucontroller/riwayat-baca/${widget.parentId}';
+      if (widget.childId != null) {
+        url += '?child_id=${widget.childId}';
+      }
+
+      final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -52,62 +58,96 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F7F3), // Warna background nyambung dengan dashboard ortu
+      backgroundColor: const Color(0xFFF9F7F3),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFF6B6B),
         elevation: 0,
         foregroundColor: Colors.white,
-        title: const Text("Riwayat Membaca", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        title: const Text(
+          "Riwayat Membaca",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6B6B)))
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFFFF6B6B)),
+            )
           : SingleChildScrollView(
               child: Column(
                 children: [
                   _buatHeaderMerah(),
                   const SizedBox(height: 16),
-                  
-                  _riwayat.isEmpty 
-                    ? const Padding(
-                        padding: EdgeInsets.all(30.0),
-                        child: Text("Belum ada riwayat bacaan.", style: TextStyle(color: Colors.grey)),
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        child: Column(
-                          children: _riwayat.map((log) {
-                            
-                            // [KEAMANAN DATA]
-                            int isFinished = int.tryParse(log['is_finished']?.toString() ?? '0') ?? 0;
-                            int lastPage = int.tryParse(log['last_page']?.toString() ?? '0') ?? 0;
-                            int totalPages = int.tryParse(log['total_pages']?.toString() ?? '1') ?? 1;
-                            int duration = int.tryParse(log['reading_duration']?.toString() ?? '0') ?? 0;
-                            
-                            double progress = lastPage / totalPages;
-                            int persentase = (progress * 100).clamp(0, 100).toInt();
 
-                            bool selesai = (isFinished == 1 || lastPage >= totalPages);
+                  _riwayat.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(30.0),
+                          child: Text(
+                            "Belum ada riwayat bacaan.",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Column(
+                            children: _riwayat.map((log) {
+                              int isFinished =
+                                  int.tryParse(
+                                    log['is_finished']?.toString() ?? '0',
+                                  ) ??
+                                  0;
+                              int lastPage =
+                                  int.tryParse(
+                                    log['last_page']?.toString() ?? '0',
+                                  ) ??
+                                  0;
+                              int totalPages =
+                                  int.tryParse(
+                                    log['total_pages']?.toString() ?? '1',
+                                  ) ??
+                                  1;
+                              int duration =
+                                  int.tryParse(
+                                    log['reading_duration']?.toString() ?? '0',
+                                  ) ??
+                                  0;
 
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12.0),
-                              child: _buatKartuBuku(
-                                ikon: selesai ? '🐠' : '🦁', // Ikan untuk selesai, Singa untuk belum
-                                warnaIkon: selesai ? Colors.blue : Colors.orange,
-                                judul: log['title'] ?? 'Buku Tanpa Judul',
-                                status: selesai 
-                                  ? 'Selesai: ${log['last_read_at'] ?? '-'}' 
-                                  : 'Terakhir: ${log['last_read_at'] ?? '-'}',
-                                persentase: progress.clamp(0.0, 1.0),
-                                warnaProgress: selesai ? Colors.green : Colors.blue,
-                                teksBawah: selesai 
-                                  ? '✅ $lastPage/$totalPages hal • $duration menit'
-                                  : 'Hal. $lastPage/$totalPages • $persentase% • $duration menit',
-                                teksBawahWarna: selesai ? Colors.green : Colors.blue,
-                              ),
-                            );
-                          }).toList(),
+                              double progress = lastPage / totalPages;
+                              int persentase = (progress * 100)
+                                  .clamp(0, 100)
+                                  .toInt();
+
+                              bool selesai =
+                                  (isFinished == 1 || lastPage >= totalPages);
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: _buatKartuBuku(
+                                  ikon: selesai ? '🐠' : '🦁',
+                                  warnaIkon: selesai
+                                      ? Colors.blue
+                                      : Colors.orange,
+                                  judul: log['title'] ?? 'Buku Tanpa Judul',
+                                  pengarang:
+                                      log['author'] ??
+                                      'Anonim', // 🌟 AMBIL DATA PENGARANG SEKALIAN
+                                  status: selesai
+                                      ? 'Selesai: ${log['last_read_at'] ?? '-'}'
+                                      : 'Terakhir: ${log['last_read_at'] ?? '-'}',
+                                  persentase: progress.clamp(0.0, 1.0),
+                                  warnaProgress: selesai
+                                      ? Colors.green
+                                      : Colors.blue,
+                                  teksBawah: selesai
+                                      ? '✅ $lastPage/$totalPages hal • $duration menit'
+                                      : 'Hal. $lastPage/$totalPages • $persentase% • $duration menit',
+                                  teksBawahWarna: selesai
+                                      ? Colors.green
+                                      : Colors.blue,
+                                ),
+                              );
+                            }).toList(),
+                          ),
                         ),
-                      ),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -157,6 +197,7 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
     required String ikon,
     required Color warnaIkon,
     required String judul,
+    required String pengarang,
     required String status,
     required double persentase,
     required Color warnaProgress,
@@ -191,12 +232,25 @@ class _HalamanRiwayatState extends State<HalamanRiwayat> {
               children: [
                 Text(
                   judul,
-                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                // 🌟 TAMPILAN TEXT PENGARANG/PENULIS BUKU DI HALAMAN RIWAYAT
+                Text(
+                  "Penulis: $pengarang",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   status,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 12),
                 Container(
