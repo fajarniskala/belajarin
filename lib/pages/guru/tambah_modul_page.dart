@@ -7,7 +7,7 @@ import '../../api_config.dart';
 // ---> TAMBAHAN IMPORTS UNTUK NAVIGASI BAWAH <---
 import 'tambah_siswa_page.dart';
 import 'rekap_nilai_page.dart';
-import 'upload_ebook_page.dart';
+import 'list_ebook_page.dart';
 
 class TambahModulPage extends StatefulWidget {
   final int guruId;
@@ -273,10 +273,11 @@ class _TambahModulPageState extends State<TambahModulPage> {
                 ),
               );
             } else if (index == 4) {
-              Navigator.pushReplacement(
+              Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => UploadEbookPage(guruId: widget.guruId),
+                  builder: (context) =>
+                      ListEbookPage(guruId: widget.guruId), // 🔥 DIUBAH KE LIST
                 ),
               );
             }
