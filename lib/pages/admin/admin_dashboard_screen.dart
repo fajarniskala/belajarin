@@ -9,6 +9,8 @@ import 'data_guru_page.dart';
 import 'data_orang_tua_page.dart';
 import 'data_anak_page.dart';
 import 'laporan_sistem_page.dart';
+import 'verifikasi_user_page.dart';
+import 'manajemen_achievement_page.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -423,6 +425,40 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildUserManagementCards() {
     return Column(
       children: [
+        _buildUserTypeCard(
+          icon: Icons.gpp_maybe_rounded,
+          iconColor: Colors.red.shade400,
+          title: 'Persetujuan Akun Baru',
+          subtitle: 'Validasi pendaftaran pengguna mandiri',
+          total: 'Konfirmasi',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const VerifikasiUserPage(),
+              ),
+            ).then(
+              (_) => _fetchUserStats(),
+            ); // Refresh data dashboard setelah kembali
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildUserTypeCard(
+          icon: Icons.workspace_premium_rounded,
+          iconColor: Colors.purple,
+          title: 'Manajemen Achievement',
+          subtitle: 'Kelola master lencana & reward poin anak',
+          total: 'Master', // Label teks kanan kartu
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const ManajemenAchievementPage(),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
         _buildUserTypeCard(
           icon: Icons.person_4,
           iconColor: Colors.orange,
