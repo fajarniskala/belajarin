@@ -99,19 +99,19 @@ class _ManajemenAchievementPageState extends State<ManajemenAchievementPage> {
               TextField(
                 controller: titleController,
                 decoration: const InputDecoration(
-                  labelText: 'Nama Lencana / Title',
+                  labelText: 'Nama Lencana',
                 ),
               ),
               TextField(
                 controller: descController,
                 decoration: const InputDecoration(
-                  labelText: 'Deskripsi Logika',
+                  labelText: 'Deskripsi',
                 ),
               ),
               TextField(
                 controller: condController,
                 decoration: const InputDecoration(
-                  labelText: 'Kondisi Syarat (misal finish_ebook:5)',
+                  labelText: 'Requirement (misal finish_ebook:5)',
                 ),
               ),
               TextField(
