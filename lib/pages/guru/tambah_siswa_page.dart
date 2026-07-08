@@ -7,6 +7,7 @@ import '../../api_config.dart';
 import 'tambah_modul_page.dart';
 import 'rekap_nilai_page.dart';
 import 'upload_ebook_page.dart';
+import 'list_ebook_page.dart';
 
 class TambahSiswaPage extends StatefulWidget {
   final int guruId; // Menerima ID Guru dari halaman Dashboard
@@ -61,18 +62,25 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
 
         if (mounted) {
           setState(() {
-            _listOrangTua = parentData.map((p) => {
-              "id": p['id'].toString(), 
-              "name": "${p['name']} (${p['email']})" 
-            }).toList();
-            _isLoadingParents = false; 
+            _listOrangTua = parentData
+                .map(
+                  (p) => {
+                    "id": p['id'].toString(),
+                    "name": "${p['name']} (${p['email']})",
+                  },
+                )
+                .toList();
+            _isLoadingParents = false;
           });
         }
       } else {
         if (mounted) {
           setState(() => _isLoadingParents = false);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal memuat orang tua: ${response.statusCode}'), backgroundColor: Colors.orange),
+            SnackBar(
+              content: Text('Gagal memuat orang tua: ${response.statusCode}'),
+              backgroundColor: Colors.orange,
+            ),
           );
         }
       }
@@ -90,7 +98,7 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
       if (_selectedParentId == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Harap pilih Orang Tua terlebih dahulu!'), 
+            content: Text('Harap pilih Orang Tua terlebih dahulu!'),
             backgroundColor: Colors.red,
           ),
         );
@@ -112,28 +120,27 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
 
       try {
         final response = await http.post(
-          Uri.parse('$_baseUrl/add-student'), 
+          Uri.parse('$_baseUrl/add-student'),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode(dataSiswaBaru),
         );
 
         if (response.statusCode == 201 || response.statusCode == 200) {
           if (!mounted) return;
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Berhasil menyimpan data siswa!'), 
+              content: Text('Berhasil menyimpan data siswa!'),
               backgroundColor: Colors.green,
             ),
           );
-          
-          Navigator.pop(context, true); 
-          
+
+          Navigator.pop(context, true);
         } else {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Gagal menyimpan data: ${response.statusCode}'), 
+              content: Text('Gagal menyimpan data: ${response.statusCode}'),
               backgroundColor: Colors.red,
             ),
           );
@@ -142,7 +149,7 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Terjadi kesalahan jaringan: $e'), 
+            content: Text('Terjadi kesalahan jaringan: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -161,8 +168,11 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text("Tambah Data Siswa", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF20B2AA), 
+        title: const Text(
+          "Tambah Data Siswa",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF20B2AA),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -184,7 +194,7 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
           currentIndex: 1, // Aktif pada indeks 1 (Siswa)
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFF20B2AA), 
+          selectedItemColor: const Color(0xFF20B2AA),
           unselectedItemColor: Colors.grey.shade500,
           selectedFontSize: 12,
           unselectedFontSize: 11,
@@ -194,17 +204,23 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
             } else if (index == 2) {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => TambahModulPage(guruId: widget.guruId)),
+                MaterialPageRoute(
+                  builder: (context) => TambahModulPage(guruId: widget.guruId),
+                ),
               );
             } else if (index == 3) {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => RekapNilaiPage(guruId: widget.guruId)),
+                MaterialPageRoute(
+                  builder: (context) => RekapNilaiPage(guruId: widget.guruId),
+                ),
               );
             } else if (index == 4) {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => UploadEbookPage(guruId: widget.guruId)),
+                MaterialPageRoute(
+                  builder: (context) => ListEbookPage(guruId: widget.guruId),
+                ), // 🔥 DIUBAH KE LIST
               );
             }
           },
@@ -217,10 +233,7 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
               icon: Icon(Icons.person_add_alt_1),
               label: 'Siswa',
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.post_add),
-              label: 'Modul',
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.post_add), label: 'Modul'),
             BottomNavigationBarItem(
               icon: Icon(Icons.analytics_outlined),
               label: 'Nilai',
@@ -232,8 +245,8 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
           ],
         ),
       ),
-      // ======================================================================
 
+      // ======================================================================
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Container(
@@ -261,49 +274,72 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
                 const SizedBox(height: 20),
 
                 // 1. DROPDOWN PILIH ORANG TUA
-                const Text("Pilih Orang Tua", style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text(
+                  "Pilih Orang Tua",
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   decoration: InputDecoration(
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    prefixIcon: const Icon(Icons.family_restroom, color: Color(0xFF20B2AA)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.family_restroom,
+                      color: Color(0xFF20B2AA),
+                    ),
                   ),
-                  hint: _isLoadingParents 
-                      ? const Text("Memuat data orang tua...") 
+                  hint: _isLoadingParents
+                      ? const Text("Memuat data orang tua...")
                       : const Text("-- Pilih Data Orang Tua --"),
                   value: _selectedParentId,
-                  items: _isLoadingParents 
-                      ? [] 
+                  items: _isLoadingParents
+                      ? []
                       : _listOrangTua.map((parent) {
                           return DropdownMenuItem<String>(
                             value: parent['id'],
                             child: Text(parent['name']),
                           );
                         }).toList(),
-                  onChanged: (_isLoading || _isLoadingParents) ? null : (value) {
-                    setState(() {
-                      _selectedParentId = value;
-                    });
-                  },
-                  validator: (value) => value == null ? 'Orang Tua wajib dipilih' : null,
+                  onChanged: (_isLoading || _isLoadingParents)
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _selectedParentId = value;
+                          });
+                        },
+                  validator: (value) =>
+                      value == null ? 'Orang Tua wajib dipilih' : null,
                 ),
 
                 const SizedBox(height: 20),
 
                 // 2. INPUT NAMA SISWA
-                const Text("Nama Lengkap Siswa", style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text(
+                  "Nama Lengkap Siswa",
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _nameController,
                   enabled: !_isLoading,
                   decoration: InputDecoration(
                     hintText: "Masukkan nama siswa...",
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: const Icon(Icons.person, color: Color(0xFF20B2AA)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.person,
+                      color: Color(0xFF20B2AA),
+                    ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Nama tidak boleh kosong';
+                    if (value == null || value.isEmpty)
+                      return 'Nama tidak boleh kosong';
                     return null;
                   },
                 ),
@@ -311,18 +347,27 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
                 const SizedBox(height: 20),
 
                 // 3. INPUT EMAIL SISWA
-                const Text("Email Siswa (Opsional / Username)", style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text(
+                  "Email Siswa (Opsional / Username)",
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _emailController,
                   enabled: !_isLoading,
                   decoration: InputDecoration(
                     hintText: "siswa@email.com",
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: const Icon(Icons.email, color: Color(0xFF20B2AA)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.email,
+                      color: Color(0xFF20B2AA),
+                    ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Email wajib diisi';
+                    if (value == null || value.isEmpty)
+                      return 'Email wajib diisi';
                     return null;
                   },
                 ),
@@ -330,7 +375,10 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
                 const SizedBox(height: 20),
 
                 // 4. INPUT PASSWORD
-                const Text("Password Akun", style: TextStyle(fontWeight: FontWeight.w600)),
+                const Text(
+                  "Password Akun",
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _passwordController,
@@ -338,11 +386,17 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
                   enabled: !_isLoading,
                   decoration: InputDecoration(
                     hintText: "Masukkan password...",
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                    prefixIcon: const Icon(Icons.lock, color: Color(0xFF20B2AA)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.lock,
+                      color: Color(0xFF20B2AA),
+                    ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Password wajib diisi';
+                    if (value == null || value.isEmpty)
+                      return 'Password wajib diisi';
                     if (value.length < 3) return 'Password terlalu pendek';
                     return null;
                   },
@@ -355,22 +409,33 @@ class _TambahSiswaPageState extends State<TambahSiswaPage> {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: (_isLoading || _isLoadingParents) ? null : _submitData,
+                    onPressed: (_isLoading || _isLoadingParents)
+                        ? null
+                        : _submitData,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E88E5), // Biru material primer sesuai gambar rekap
+                      backgroundColor: const Color(
+                        0xFF1E88E5,
+                      ), // Biru material primer sesuai gambar rekap
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: _isLoading 
+                    child: _isLoading
                         ? const SizedBox(
-                            height: 24, 
-                            width: 24, 
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 3,
+                            ),
                           )
                         : const Text(
                             "Simpan Data Siswa",
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                   ),
                 ),
