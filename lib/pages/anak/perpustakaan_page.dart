@@ -17,7 +17,6 @@ class _PerpustakaanPageState extends State<PerpustakaanPage> {
   List<dynamic> _books = [];
   bool _isLoading = true;
 
-  // Daftar palet warna pastel untuk variasi background icon buku cerita
   final List<Color> _cardColors = [
     Colors.amber.shade400,
     Colors.green.shade500,
@@ -32,7 +31,6 @@ class _PerpustakaanPageState extends State<PerpustakaanPage> {
     _fetchLibraryBooks();
   }
 
-  // Mengambil seluruh daftar buku cerita beserta log progressnya
   Future<void> _fetchLibraryBooks() async {
     try {
       final response = await http.get(
@@ -61,9 +59,7 @@ class _PerpustakaanPageState extends State<PerpustakaanPage> {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        backgroundColor: const Color(
-          0xFFCE93D8,
-        ), // Warna ungu muda appBar mockup
+        backgroundColor: const Color(0xFFCE93D8), 
         elevation: 0,
         leading: IconButton(
           icon: const Icon(
@@ -84,11 +80,10 @@ class _PerpustakaanPageState extends State<PerpustakaanPage> {
       ),
       body: Column(
         children: [
-          // --- HEADER PURPLE BANNER (Sesuai mockup) ---
           Container(
             width: double.infinity,
             decoration: const BoxDecoration(
-              color: Color(0xFFBA68C8), // Ungu utama mockup perpustakaan
+              color: Color(0xFFBA68C8), 
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(30),
                 bottomRight: Radius.circular(30),
@@ -131,7 +126,6 @@ class _PerpustakaanPageState extends State<PerpustakaanPage> {
             ),
           ),
 
-          // --- GRID CONTAINER UTAMA ---
           Expanded(
             child: _isLoading
                 ? const Center(
@@ -155,8 +149,7 @@ class _PerpustakaanPageState extends State<PerpustakaanPage> {
                           crossAxisCount: 2,
                           crossAxisSpacing: 16,
                           mainAxisSpacing: 16,
-                          mainAxisExtent:
-                              245, // Mengatur tinggi proporsional kartu grid
+                          mainAxisExtent: 260, // 🌟 DIUBAH: Dari 245 ke 260 agar pas menampung kolom penulis
                         ),
                     itemBuilder: (context, index) {
                       final book = _books[index];
@@ -169,7 +162,6 @@ class _PerpustakaanPageState extends State<PerpustakaanPage> {
                       final bool isFinished =
                           book['is_finished'].toString() == '1';
 
-                      // Tentukan warna ikon dinamis bergantian secara otomatis
                       final Color bookThemeColor =
                           _cardColors[index % _cardColors.length];
 
@@ -207,7 +199,6 @@ class _PerpustakaanPageState extends State<PerpustakaanPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Wadah Atas (Cover Buku / Icon Box)
                               Container(
                                 width: double.infinity,
                                 height: 120,
@@ -226,13 +217,11 @@ class _PerpustakaanPageState extends State<PerpustakaanPage> {
                                 ),
                               ),
 
-                              // Detail Bawah Kartu
                               Padding(
                                 padding: const EdgeInsets.all(12),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Generator Tag Status Kondisional (Selesai, Progress %, atau Baru)
                                     _buildStatusTag(
                                       lastPage,
                                       totalPages,
@@ -250,6 +239,20 @@ class _PerpustakaanPageState extends State<PerpustakaanPage> {
                                       ),
                                     ),
                                     const SizedBox(height: 2),
+                                    
+                                    // 🔥 BARU: MENAMPILKAN DETAIL PENGARANG / PENULIS E-BOOK
+                                    Text(
+                                      "Oleh: ${book['author'] ?? 'Anonim'}",
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+
                                     Text(
                                       lastPage > 0
                                           ? "$lastPage dari $totalPages hal."
@@ -261,9 +264,8 @@ class _PerpustakaanPageState extends State<PerpustakaanPage> {
                                       ),
                                     ),
 
-                                    // Munculkan bar progress jika buku sedang aktif dibaca
                                     if (lastPage > 0) ...[
-                                      const SizedBox(height: 8),
+                                      const SizedBox(height: 6),
                                       ClipRRect(
                                         borderRadius: BorderRadius.circular(10),
                                         child: LinearProgressIndicator(
@@ -293,7 +295,6 @@ class _PerpustakaanPageState extends State<PerpustakaanPage> {
     );
   }
 
-  // Fungsi pembentuk widget Chip Tag Status sesuai mockup
   Widget _buildStatusTag(int lastPage, int totalPages, bool isFinished) {
     String label = "✨ Baru";
     Color bg = Colors.amber.shade50;
