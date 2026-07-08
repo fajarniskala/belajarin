@@ -117,10 +117,22 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       } else {
+        // 🔥 GANTI DI SINI: Sekarang mendukung pembacaan key 'error' langsung dari backend Auth.php
         final Map<String, dynamic> errorData = json.decode(response.body);
+
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorData['messages']?['error'] ?? 'Login gagal'),
+            content: Text(
+              errorData['error'] ??
+                  errorData['messages']?['error'] ??
+                  'Login gagal',
+            ),
+            backgroundColor:
+                Colors.red[400], // Menampilkan warna merah penanda error
+            behavior:
+                SnackBarBehavior.floating, // Membuat snackbar melayang estetik
           ),
         );
       }
@@ -369,7 +381,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ),
                                     children: [
                                       TextSpan(
-                                        text: 'Daftar Orang Tua',
+                                        text: 'Daftar Akun Baru',
                                         style: TextStyle(
                                           color: Color(0xFF5CA3FF),
                                           fontWeight: FontWeight.bold,
