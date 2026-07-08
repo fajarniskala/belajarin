@@ -10,8 +10,8 @@ import 'kelola_modul_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'daftar_siswa_page.dart';
 import 'rekap_nilai_page.dart';
-import 'upload_ebook_page.dart';
 import 'profil_guru_page.dart';
+import 'list_ebook_page.dart';
 
 class GuruDashboardScreen extends StatefulWidget {
   final int guruId;
@@ -264,7 +264,8 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => UploadEbookPage(guruId: widget.guruId),
+                  builder: (context) =>
+                      ListEbookPage(guruId: widget.guruId), // 🔥 DIUBAH KE LIST
                 ),
               );
             }
@@ -376,9 +377,9 @@ class _GuruDashboardScreenState extends State<GuruDashboardScreen> {
                       builder: (context) => ProfilGuruPage(
                         guruId: widget.guruId,
                         guruName: _guruName,
-                        myStudents: myStudentCount,   
-                        myModules: myModuleCount,     
-                        totalPoints: totalPointsGiven, 
+                        myStudents: myStudentCount,
+                        myModules: myModuleCount,
+                        totalPoints: totalPointsGiven,
                       ),
                     ),
                   ).then((_) {
